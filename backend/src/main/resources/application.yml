@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: solar-management-system
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/solar_management
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+      enabled: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/${KEYCLOAK_REALM:solar-management}
+          jwk-set-uri: ${KEYCLOAK_JWK_URL:http://host.docker.internal:8180}/realms/${KEYCLOAK_REALM:solar-management}/protocol/openid-connect/certs
+
+# Keycloak Configuration
+keycloak:
+  realm: ${KEYCLOAK_REALM:solar-management}
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8180}
+  resource: ${KEYCLOAK_RESOURCE:solar-backend}
+  credentials:
+    secret: solar-backend-secret
+
+# AWS S3 Configuration (optional)
+aws:
+  s3:
+    bucket-name: ${AWS_S3_BUCKET:solar-management-images}
+    region: ${AWS_REGION:ap-southeast-2}
+    access-key: ${AWS_ACCESS_KEY:}
+    secret-key: ${AWS_SECRET_KEY:}
+
+# Local storage (alternative to S3)
+file:
+  upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+
+# Application Configuration
+app:
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:4200}
+  
+server:
+  port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# Logging
+logging:
+  level:
+    com.solar.management: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

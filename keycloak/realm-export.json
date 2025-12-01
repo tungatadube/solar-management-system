@@ -1,0 +1,177 @@
+{
+  "id": "solar-management",
+  "realm": "solar-management",
+  "displayName": "Solar Management System",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "roles": {
+    "realm": [
+      {
+        "name": "ADMIN",
+        "description": "Administrator role with full system access"
+      },
+      {
+        "name": "MANAGER",
+        "description": "Manager role for job and stock oversight"
+      },
+      {
+        "name": "TECHNICIAN",
+        "description": "Technician role for field work"
+      },
+      {
+        "name": "ASSISTANT",
+        "description": "Assistant role with limited access"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "solar-backend",
+      "name": "Solar Management Backend",
+      "description": "Spring Boot backend API",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "solar-backend-secret",
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "solar-frontend",
+      "name": "Solar Management Frontend",
+      "description": "React frontend application",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://localhost/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://localhost"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "email": "admin@solar.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ADMIN"],
+      "attributes": {
+        "phone": ["+61-400-000-001"]
+      }
+    },
+    {
+      "username": "manager1",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Sarah",
+      "lastName": "Manager",
+      "email": "manager@solar.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["MANAGER"],
+      "attributes": {
+        "phone": ["+61-400-000-002"]
+      }
+    },
+    {
+      "username": "john.tech",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "John",
+      "lastName": "Smith",
+      "email": "john@solar.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["TECHNICIAN"],
+      "attributes": {
+        "phone": ["+61-400-000-003"]
+      }
+    },
+    {
+      "username": "mike.tech",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Mike",
+      "lastName": "Johnson",
+      "email": "mike@solar.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["TECHNICIAN"],
+      "attributes": {
+        "phone": ["+61-400-000-004"]
+      }
+    },
+    {
+      "username": "assistant1",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Emma",
+      "lastName": "Williams",
+      "email": "assistant@solar.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ASSISTANT"],
+      "attributes": {
+        "phone": ["+61-400-000-005"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+# Node modules
+node_modules/
+frontend/node_modules/
+
+# Build outputs
+frontend/build/
+frontend/dist/
+backend/target/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# Docker
+*.log
+
+# Java
+*.class
+*.jar
+*.war
+!backend/.mvn/wrapper/maven-wrapper.jar
+
+# Database
+postgres_data/
+pgdata/
+
+# Temporary files
+*.tmp
+*.temp
