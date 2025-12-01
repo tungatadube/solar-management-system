@@ -84,7 +84,7 @@ services:
     container_name: solar-frontend
     environment:
       REACT_APP_API_URL: http://backend:8080/api
-      REACT_APP_GOOGLE_MAPS_API_KEY: AIzaSyAX2OEs1J4or90ziCZQTmQEWDkYW6lYPOA
+      REACT_APP_GOOGLE_MAPS_API_KEY: ${REACT_APP_GOOGLE_MAPS_API_KEY}
     ports:
       - "3000:80"
     depends_on:
