@@ -9,6 +9,7 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import JobsList from './pages/JobsList';
 import JobCreate from './pages/JobCreate';
+import JobEdit from './pages/JobEdit';
 import StockManagement from './pages/StockManagement';
 import LocationTracking from './pages/LocationTracking';
 import Reports from './pages/Reports';
@@ -111,6 +112,7 @@ const App: React.FC = () => {
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/jobs" element={<JobsList />} />
                   <Route path="/jobs/create" element={<JobCreate />} />
+                  <Route path="/jobs/edit/:id" element={<JobEdit />} />
                   <Route path="/stock" element={<StockManagement />} />
                   <Route path="/tracking" element={<LocationTracking />} />
                   <Route path="/reports" element={<Reports />} />

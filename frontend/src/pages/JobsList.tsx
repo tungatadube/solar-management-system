@@ -143,6 +143,12 @@ const JobsList: React.FC = () => {
           >
             <ViewIcon />
           </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => navigate(`/jobs/edit/${params.row.id}`)}
+          >
+            <EditIcon />
+          </IconButton>
           <IconButton size="small" onClick={() => handleDelete(params.row.id)}>
             <DeleteIcon />
           </IconButton>
