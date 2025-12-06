@@ -77,9 +77,13 @@ public class InvoiceService {
                 .billToEmail(parameterService.getCompanyEmail())
                 .billToPhone(parameterService.getCompanyPhone())
                 .technicianName(technician.getFirstName() + " " + technician.getLastName())
+                .technicianABN(technician.getAbn())
                 .technicianAddress(technician.getAddress() != null ? technician.getAddress() : "")
                 .technicianEmail(technician.getEmail())
                 .technicianPhone(technician.getPhoneNumber())
+                .bankName(technician.getAccount() != null ? technician.getAccount().getAccountName() : null)
+                .bsb(technician.getAccount() != null ? technician.getAccount().getBsb() : null)
+                .accountNumber(technician.getAccount() != null ? technician.getAccount().getAccountNumber() : null)
                 .status(Invoice.InvoiceStatus.DRAFT)
                 .gstRate(BigDecimal.ZERO)
                 .build();
@@ -218,10 +222,15 @@ public class InvoiceService {
         
         // Bank details
         row = sheet.createRow(rowNum++);
-        createCell(row, 1, "Bank Details: " + invoice.getTechnicianName(), boldStyle);
-        
+        String bankDetails = "Bank Details: " + invoice.getTechnicianName();
+        if (invoice.getBankName() != null) {
+            bankDetails += " - " + invoice.getBankName();
+        }
+        createCell(row, 1, bankDetails, boldStyle);
+
         row = sheet.createRow(rowNum++);
         createCell(row, 1, "BSB: " + (invoice.getBsb() != null ? invoice.getBsb() : ""), null);
+        createCell(row, 2, "Account: " + (invoice.getAccountNumber() != null ? invoice.getAccountNumber() : ""), null);
         createCell(row, 4, "Deposit To Be Paid", boldStyle);
         Cell totalCell = createCell(row, 5, "", currencyStyle);
         totalCell.setCellValue(invoice.getTotalAmount().doubleValue());

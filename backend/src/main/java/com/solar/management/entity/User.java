@@ -54,6 +54,10 @@ public class User {
     @Column
     private String address;
 
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "account_id", referencedColumnName = "id")
+    private Account account;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role;
