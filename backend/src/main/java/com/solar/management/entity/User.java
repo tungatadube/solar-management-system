@@ -51,6 +51,9 @@ public class User {
     @Column(length = 20)
     private String abn;
 
+    @Column
+    private String address;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role;

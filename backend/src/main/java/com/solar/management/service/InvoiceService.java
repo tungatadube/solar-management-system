@@ -77,6 +77,7 @@ public class InvoiceService {
                 .billToEmail(parameterService.getCompanyEmail())
                 .billToPhone(parameterService.getCompanyPhone())
                 .technicianName(technician.getFirstName() + " " + technician.getLastName())
+                .technicianAddress(technician.getAddress() != null ? technician.getAddress() : "")
                 .technicianEmail(technician.getEmail())
                 .technicianPhone(technician.getPhoneNumber())
                 .status(Invoice.InvoiceStatus.DRAFT)
