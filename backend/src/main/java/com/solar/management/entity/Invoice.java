@@ -20,6 +20,8 @@ import java.util.Set;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@lombok.EqualsAndHashCode(exclude = {"workLogs"})
+@lombok.ToString(exclude = {"workLogs"})
 public class Invoice {
     
     @Id

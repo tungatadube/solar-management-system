@@ -19,6 +19,8 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@lombok.EqualsAndHashCode(exclude = {"invoice", "user", "job"})
+@lombok.ToString(exclude = {"invoice", "user", "job"})
 public class WorkLog {
     
     @Id
@@ -86,6 +88,8 @@ public class WorkLog {
         WAREHOUSE_WORK,
         INSPECTION,
         MAINTENANCE,
+        LOADING,
+        UNLOADING,
         OTHER
     }
     
