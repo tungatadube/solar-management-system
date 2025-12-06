@@ -1,21 +1,26 @@
 spring:
   application:
     name: solar-management-system
-  
+
   datasource:
     url: jdbc:postgresql://localhost:5432/solar_management
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
-    
+
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        jdbc:
+          time_zone: Australia/Adelaide
+
+  jackson:
+    time-zone: Australia/Adelaide
     
   servlet:
     multipart:
@@ -66,5 +71,3 @@ logging:
   level:
     com.solar.management: DEBUG
     org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
