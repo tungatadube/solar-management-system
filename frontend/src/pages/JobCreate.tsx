@@ -25,6 +25,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { jobApi, locationApi, userApi } from '../services/api';
 import { JobType, User, UserRole } from '../types';
 import GoogleMapsAutocomplete from '../components/GoogleMapsAutocomplete';
+import { formatDateToLocalISO } from '../utils/dateUtils';
 
 const JobCreate: React.FC = () => {
   const navigate = useNavigate();
@@ -39,8 +40,8 @@ const JobCreate: React.FC = () => {
     clientEmail: '',
     type: JobType.NEW_INSTALLATION,
     description: '',
-    scheduledStartTime: null as Date | null,
-    scheduledEndTime: null as Date | null,
+    startTime: null as Date | null,
+    endTime: null as Date | null,
     estimatedCost: '',
     systemSize: '',
     notes: '',
@@ -89,7 +90,7 @@ const JobCreate: React.FC = () => {
     }));
   };
 
-  const handleDateChange = (field: 'scheduledStartTime' | 'scheduledEndTime') => (date: Date | null) => {
+  const handleDateChange = (field: 'startTime' | 'endTime') => (date: Date | null) => {
     setFormData(prev => ({
       ...prev,
       [field]: date,
@@ -115,10 +116,18 @@ const JobCreate: React.FC = () => {
       if (formData.assignedTechnicianIds.length === 0) {
         throw new Error('At least one technician must be assigned');
       }
+      if (!formData.startTime) {
+        throw new Error('Start time is required');
+      }
+      if (!formData.endTime) {
+        throw new Error('End time is required');
+      }
 
-      // Create location first
+      // Create location first with unique name (includes timestamp)
+      const timestamp = new Date().toISOString().split('T')[0];
+      const locationName = `${formData.clientName} - ${locationData.address} (${timestamp})`;
       const locationPayload = {
-        name: `${formData.clientName} - ${locationData.address}`,
+        name: locationName,
         type: 'JOB_SITE' as const,
         address: locationData.address,
         city: locationData.city,
@@ -130,8 +139,25 @@ const JobCreate: React.FC = () => {
         active: true,
       };
 
-      const locationResponse = await locationApi.create(locationPayload);
-      const createdLocation = locationResponse.data;
+      let createdLocation;
+      try {
+        const locationResponse = await locationApi.create(locationPayload);
+        createdLocation = locationResponse.data;
+      } catch (err: any) {
+        // If duplicate error, try to find the existing location by name
+        if (err.response?.data?.message?.includes('duplicate key') ||
+            err.response?.data?.message?.includes('already exists')) {
+          const allLocations = await locationApi.getAll();
+          const existingLocation = allLocations.data.find(loc => loc.name === locationName);
+          if (existingLocation) {
+            createdLocation = existingLocation;
+          } else {
+            throw err;
+          }
+        } else {
+          throw err;
+        }
+      }
 
       // Prepare job data
       const jobData: any = {
@@ -140,8 +166,8 @@ const JobCreate: React.FC = () => {
         clientEmail: formData.clientEmail || undefined,
         type: formData.type,
         description: formData.description || undefined,
-        scheduledStartTime: formData.scheduledStartTime?.toISOString(),
-        scheduledEndTime: formData.scheduledEndTime?.toISOString(),
+        startTime: formatDateToLocalISO(formData.startTime),
+        endTime: formatDateToLocalISO(formData.endTime),
         estimatedCost: formData.estimatedCost ? parseFloat(formData.estimatedCost) : undefined,
         systemSize: formData.systemSize ? parseInt(formData.systemSize) : undefined,
         notes: formData.notes || undefined,
@@ -330,12 +356,14 @@ const JobCreate: React.FC = () => {
 
               <Grid item xs={12} md={6}>
                 <DateTimePicker
-                  label="Scheduled Start Time"
-                  value={formData.scheduledStartTime}
-                  onChange={handleDateChange('scheduledStartTime')}
+                  label="Start Time"
+                  value={formData.startTime}
+                  onChange={handleDateChange('startTime')}
                   slotProps={{
                     textField: {
                       fullWidth: true,
+                      required: true,
+                      helperText: "Required - Job start time",
                     },
                   }}
                 />
@@ -343,12 +371,14 @@ const JobCreate: React.FC = () => {
 
               <Grid item xs={12} md={6}>
                 <DateTimePicker
-                  label="Scheduled End Time"
-                  value={formData.scheduledEndTime}
-                  onChange={handleDateChange('scheduledEndTime')}
+                  label="End Time"
+                  value={formData.endTime}
+                  onChange={handleDateChange('endTime')}
                   slotProps={{
                     textField: {
                       fullWidth: true,
+                      required: true,
+                      helperText: "Required - Job end time",
                     },
                   }}
                 />

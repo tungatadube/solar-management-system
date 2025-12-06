@@ -23,8 +23,9 @@ import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { jobApi, locationApi, userApi } from '../services/api';
-import { JobType, User, UserRole, Job } from '../types';
+import { JobType, JobStatus, User, UserRole, Job } from '../types';
 import GoogleMapsAutocomplete from '../components/GoogleMapsAutocomplete';
+import { formatDateToLocalISO } from '../utils/dateUtils';
 
 const JobEdit: React.FC = () => {
   const navigate = useNavigate();
@@ -40,9 +41,10 @@ const JobEdit: React.FC = () => {
     clientPhone: '',
     clientEmail: '',
     type: JobType.NEW_INSTALLATION,
+    status: JobStatus.SCHEDULED,
     description: '',
-    scheduledStartTime: null as Date | null,
-    scheduledEndTime: null as Date | null,
+    startTime: null as Date | null,
+    endTime: null as Date | null,
     estimatedCost: '',
     systemSize: '',
     notes: '',
@@ -62,6 +64,8 @@ const JobEdit: React.FC = () => {
 
   const [locationError, setLocationError] = useState(false);
   const [currentLocationId, setCurrentLocationId] = useState<number | null>(null);
+  const [originalLocationAddress, setOriginalLocationAddress] = useState<string>('');
+  const [locationChanged, setLocationChanged] = useState(false);
 
   // Data for dropdowns
   const [users, setUsers] = useState<User[]>([]);
@@ -79,9 +83,10 @@ const JobEdit: React.FC = () => {
           clientPhone: job.clientPhone || '',
           clientEmail: job.clientEmail || '',
           type: job.type,
+          status: job.status,
           description: job.description || '',
-          scheduledStartTime: job.scheduledStartTime ? new Date(job.scheduledStartTime) : null,
-          scheduledEndTime: job.scheduledEndTime ? new Date(job.scheduledEndTime) : null,
+          startTime: job.startTime ? new Date(job.startTime) : null,
+          endTime: job.endTime ? new Date(job.endTime) : null,
           estimatedCost: job.estimatedCost?.toString() || '',
           systemSize: job.systemSize?.toString() || '',
           notes: job.notes || '',
@@ -91,6 +96,7 @@ const JobEdit: React.FC = () => {
         // Set current location
         if (job.location) {
           setCurrentLocationId(job.location.id);
+          setOriginalLocationAddress(job.location.address);
           setLocationData({
             address: job.location.address,
             city: job.location.city || '',
@@ -122,11 +128,52 @@ const JobEdit: React.FC = () => {
     }));
   };
 
-  const handleDateChange = (field: 'scheduledStartTime' | 'scheduledEndTime') => (date: Date | null) => {
+  const handleDateChange = (field: 'startTime' | 'endTime') => (date: Date | null) => {
     setFormData(prev => ({
       ...prev,
       [field]: date,
     }));
+  };
+
+  const handleStatusChange = async (event: SelectChangeEvent<JobStatus>) => {
+    const newStatus = event.target.value as JobStatus;
+    const oldStatus = formData.status;
+
+    // Update form data
+    setFormData(prev => ({
+      ...prev,
+      status: newStatus,
+    }));
+
+    // If changing to COMPLETED, call the updateStatus API which will create work logs
+    if (newStatus === JobStatus.COMPLETED && oldStatus !== JobStatus.COMPLETED) {
+      try {
+        await jobApi.updateStatus(Number(id), newStatus);
+        setSuccess(true);
+        setError(null);
+        // Show success message
+        alert('Job marked as COMPLETED! Work logs have been automatically created for all assigned technicians.');
+      } catch (err: any) {
+        setError('Failed to update job status: ' + (err.response?.data?.message || err.message));
+        // Revert status on error
+        setFormData(prev => ({
+          ...prev,
+          status: oldStatus,
+        }));
+      }
+    } else if (newStatus !== oldStatus) {
+      // For other status changes, also call the API
+      try {
+        await jobApi.updateStatus(Number(id), newStatus);
+      } catch (err: any) {
+        setError('Failed to update job status: ' + (err.response?.data?.message || err.message));
+        // Revert status on error
+        setFormData(prev => ({
+          ...prev,
+          status: oldStatus,
+        }));
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -148,12 +195,52 @@ const JobEdit: React.FC = () => {
       if (formData.assignedTechnicianIds.length === 0) {
         throw new Error('At least one technician must be assigned');
       }
+      if (!formData.startTime) {
+        throw new Error('Start time is required');
+      }
+      if (!formData.endTime) {
+        throw new Error('End time is required');
+      }
 
       let locationId = currentLocationId;
 
-      // For editing, we just use the existing location
-      // The location should have been set when the job was loaded
-      if (!locationId) {
+      // Only create new location if user explicitly selected a new one
+      if (locationChanged && locationData) {
+        // Create new location with timestamp to make it unique
+        const timestamp = new Date().toISOString().split('T')[0];
+        const locationName = `${formData.clientName} - ${locationData.address} (${timestamp})`;
+        const locationPayload = {
+          name: locationName,
+          type: 'JOB_SITE' as const,
+          address: locationData.address,
+          city: locationData.city,
+          state: locationData.state,
+          postalCode: locationData.postalCode,
+          country: locationData.country,
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          active: true,
+        };
+
+        try {
+          const locationResponse = await locationApi.create(locationPayload);
+          locationId = locationResponse.data.id;
+        } catch (err: any) {
+          // If duplicate error, try to find the existing location by name
+          if (err.response?.data?.message?.includes('duplicate key') ||
+              err.response?.data?.message?.includes('already exists')) {
+            const allLocations = await locationApi.getAll();
+            const existingLocation = allLocations.data.find(loc => loc.name === locationName);
+            if (existingLocation) {
+              locationId = existingLocation.id;
+            } else {
+              throw err;
+            }
+          } else {
+            throw err;
+          }
+        }
+      } else if (!locationId) {
         throw new Error('No location found for this job');
       }
 
@@ -164,8 +251,8 @@ const JobEdit: React.FC = () => {
         clientEmail: formData.clientEmail || undefined,
         type: formData.type,
         description: formData.description || undefined,
-        scheduledStartTime: formData.scheduledStartTime?.toISOString(),
-        scheduledEndTime: formData.scheduledEndTime?.toISOString(),
+        startTime: formatDateToLocalISO(formData.startTime),
+        endTime: formatDateToLocalISO(formData.endTime),
         estimatedCost: formData.estimatedCost ? parseFloat(formData.estimatedCost) : undefined,
         systemSize: formData.systemSize ? parseInt(formData.systemSize) : undefined,
         notes: formData.notes || undefined,
@@ -280,6 +367,23 @@ const JobEdit: React.FC = () => {
               </Grid>
 
               <Grid item xs={12} md={6}>
+                <FormControl fullWidth required>
+                  <InputLabel>Job Status</InputLabel>
+                  <Select
+                    value={formData.status}
+                    onChange={handleStatusChange}
+                    label="Job Status"
+                  >
+                    <MenuItem value={JobStatus.SCHEDULED}>Scheduled</MenuItem>
+                    <MenuItem value={JobStatus.IN_PROGRESS}>In Progress</MenuItem>
+                    <MenuItem value={JobStatus.ON_HOLD}>On Hold</MenuItem>
+                    <MenuItem value={JobStatus.COMPLETED}>Completed</MenuItem>
+                    <MenuItem value={JobStatus.CANCELLED}>Cancelled</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   type="number"
@@ -314,6 +418,7 @@ const JobEdit: React.FC = () => {
                   onPlaceSelected={(place) => {
                     setLocationData(place);
                     setLocationError(false);
+                    setLocationChanged(true);
                   }}
                   label="Job Location"
                   required
@@ -355,12 +460,15 @@ const JobEdit: React.FC = () => {
 
               <Grid item xs={12} md={6}>
                 <DateTimePicker
-                  label="Scheduled Start Time"
-                  value={formData.scheduledStartTime}
-                  onChange={handleDateChange('scheduledStartTime')}
+                  label="Start Time"
+                  value={formData.startTime}
+                  onChange={handleDateChange('startTime')}
+                  ampm={true}
                   slotProps={{
                     textField: {
                       fullWidth: true,
+                      required: true,
+                      helperText: "Required - Job start time for work log calculation",
                     },
                   }}
                 />
@@ -368,12 +476,15 @@ const JobEdit: React.FC = () => {
 
               <Grid item xs={12} md={6}>
                 <DateTimePicker
-                  label="Scheduled End Time"
-                  value={formData.scheduledEndTime}
-                  onChange={handleDateChange('scheduledEndTime')}
+                  label="End Time"
+                  value={formData.endTime}
+                  onChange={handleDateChange('endTime')}
+                  ampm={true}
                   slotProps={{
                     textField: {
                       fullWidth: true,
+                      required: true,
+                      helperText: "Required - Job end time for work log calculation",
                     },
                   }}
                 />
