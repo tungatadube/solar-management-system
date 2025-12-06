@@ -26,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.WeekFields;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -70,6 +71,10 @@ public class InvoiceService {
                 .periodStartDate(startDate)
                 .periodEndDate(endDate)
                 .weekNumber(weekNumber)
+                .billToName(parameterService.getCompanyName())
+                .billToAddress(parameterService.getCompanyAddress())
+                .billToEmail(parameterService.getCompanyEmail())
+                .billToPhone(parameterService.getCompanyPhone())
                 .technicianName(technician.getFirstName() + " " + technician.getLastName())
                 .technicianEmail(technician.getEmail())
                 .technicianPhone(technician.getPhoneNumber())
@@ -313,5 +318,64 @@ public class InvoiceService {
         User technician = userRepository.findById(technicianId)
                 .orElseThrow(() -> new RuntimeException("Technician not found"));
         return invoiceRepository.findByTechnicianOrderByDateDesc(technician);
+    }
+
+    /**
+     * Generate weekly invoices for all technicians
+     * Looks at completed jobs for Mon-Fri of current week
+     */
+    public List<Invoice> generateWeeklyInvoices() {
+        // Get Monday and Friday of current week
+        LocalDate today = LocalDate.now();
+        LocalDate monday = today.with(java.time.DayOfWeek.MONDAY);
+        LocalDate friday = today.with(java.time.DayOfWeek.FRIDAY);
+
+        log.info("Generating weekly invoices for period {} to {}", monday, friday);
+
+        List<Invoice> generatedInvoices = new java.util.ArrayList<>();
+
+        // Get all active technicians and managers
+        List<User> technicians = userRepository.findAll().stream()
+                .filter(u -> u.getRole() == com.solar.management.entity.User.UserRole.TECHNICIAN ||
+                            u.getRole() == com.solar.management.entity.User.UserRole.MANAGER)
+                .toList();
+
+        for (User technician : technicians) {
+            try {
+                // Try to generate invoice for this technician
+                Invoice invoice = generateInvoice(technician.getId(), monday, friday);
+
+                // Generate Excel file
+                String filePath = generateExcelInvoice(invoice.getId());
+
+                generatedInvoices.add(invoice);
+                log.info("Generated invoice {} for technician {} - file: {}",
+                        invoice.getInvoiceNumber(),
+                        technician.getUsername(),
+                        filePath);
+
+            } catch (Exception e) {
+                // Log but continue with other technicians
+                log.warn("Could not generate invoice for technician {}: {}",
+                        technician.getUsername(), e.getMessage());
+            }
+        }
+
+        log.info("Weekly invoice generation complete. Generated {} invoices", generatedInvoices.size());
+        return generatedInvoices;
+    }
+
+    /**
+     * Get current week date range (Monday to Friday)
+     */
+    public Map<String, LocalDate> getCurrentWeekRange() {
+        LocalDate today = LocalDate.now();
+        LocalDate monday = today.with(java.time.DayOfWeek.MONDAY);
+        LocalDate friday = today.with(java.time.DayOfWeek.FRIDAY);
+
+        return Map.of(
+            "startDate", monday,
+            "endDate", friday
+        );
     }
 }
