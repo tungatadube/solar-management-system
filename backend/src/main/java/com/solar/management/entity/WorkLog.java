@@ -1,5 +1,6 @@
 package com.solar.management.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,10 +30,12 @@ public class WorkLog {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private User user;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "job_id", nullable = false)
+    @JsonIgnore
     private Job job;
     
     @Column(nullable = false)
@@ -65,9 +68,10 @@ public class WorkLog {
     
     @Column(nullable = false)
     private Boolean invoiced = false;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "invoice_id")
+    @JsonIgnore
     private Invoice invoice;
     
     @CreationTimestamp
