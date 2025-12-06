@@ -37,7 +37,8 @@ public class InvoiceService {
     private final InvoiceRepository invoiceRepository;
     private final WorkLogRepository workLogRepository;
     private final UserRepository userRepository;
-    
+    private final ParameterService parameterService;
+
     @Value("${file.upload-dir:./uploads}")
     private String uploadDir;
     
