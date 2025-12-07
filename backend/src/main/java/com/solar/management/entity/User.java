@@ -21,7 +21,7 @@ import java.util.Set;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = {"jobs", "locationTrackings"})
+@EqualsAndHashCode(exclude = {"jobs", "locationTrackings", "account"})
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
     

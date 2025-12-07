@@ -17,6 +17,8 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@lombok.EqualsAndHashCode(exclude = {"user"})
+@lombok.ToString(exclude = {"user"})
 public class Account {
 
     @Id
