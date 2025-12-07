@@ -171,6 +171,17 @@ CREATE TABLE IF NOT EXISTS stock_movements (
     movement_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Parameters table (for system configuration)
+CREATE TABLE IF NOT EXISTS parameters (
+    id BIGSERIAL PRIMARY KEY,
+    parameter_key VARCHAR(255) NOT NULL UNIQUE,
+    parameter_value VARCHAR(500) NOT NULL,
+    description TEXT,
+    type VARCHAR(50) NOT NULL CHECK (type IN ('STRING', 'NUMBER', 'BOOLEAN', 'DECIMAL')),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for performance
 CREATE INDEX idx_jobs_status ON jobs(status);
 CREATE INDEX idx_jobs_assigned_to ON jobs(assigned_to);
@@ -189,3 +200,7 @@ INSERT INTO locations (name, type, address, latitude, longitude) VALUES
 ('Main Warehouse', 'WAREHOUSE', '123 Storage St, Adelaide SA 5000', -34.9285, 138.6007),
 ('Van #1', 'VEHICLE', 'Mobile', -34.9285, 138.6007)
 ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO parameters (parameter_key, parameter_value, description, type) VALUES
+('HOURLY_RATE', '35.00', 'Hourly rate for technician work in AUD', 'DECIMAL')
+ON CONFLICT (parameter_key) DO NOTHING;

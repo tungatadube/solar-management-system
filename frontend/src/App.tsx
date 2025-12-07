@@ -12,6 +12,7 @@ import JobCreate from './pages/JobCreate';
 import JobEdit from './pages/JobEdit';
 import StockManagement from './pages/StockManagement';
 import LocationTracking from './pages/LocationTracking';
+import WorkLogs from './pages/WorkLogs';
 import Reports from './pages/Reports';
 
 const queryClient = new QueryClient({
@@ -115,6 +116,7 @@ const App: React.FC = () => {
                   <Route path="/jobs/edit/:id" element={<JobEdit />} />
                   <Route path="/stock" element={<StockManagement />} />
                   <Route path="/tracking" element={<LocationTracking />} />
+                  <Route path="/worklogs" element={<WorkLogs />} />
                   <Route path="/reports" element={<Reports />} />
                 </Routes>
               </Box>

@@ -65,17 +65,11 @@ public class Job {
     @Column(columnDefinition = "TEXT")
     private String description;
     
-    @Column
-    private LocalDateTime scheduledStartTime;
-    
-    @Column
-    private LocalDateTime scheduledEndTime;
-    
-    @Column
-    private LocalDateTime actualStartTime;
-    
-    @Column
-    private LocalDateTime actualEndTime;
+    @Column(nullable = false)
+    private LocalDateTime startTime;
+
+    @Column(nullable = false)
+    private LocalDateTime endTime;
     
     @Column
     private BigDecimal estimatedCost;

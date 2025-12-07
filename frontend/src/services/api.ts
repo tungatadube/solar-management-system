@@ -140,6 +140,13 @@ export const invoiceApi = {
   generateExcel: (id: number) => api.post<string>(`/invoices/${id}/generate-excel`),
   download: (id: number) => api.get(`/invoices/${id}/download`, { responseType: 'blob' }),
   update: (id: number, invoice: Partial<Invoice>) => api.put<Invoice>(`/invoices/${id}`, invoice),
+  generateWeekly: () => api.post<Invoice[]>('/invoices/generate-weekly'),
+  getCurrentWeekRange: () => api.get<{ startDate: string; endDate: string }>('/invoices/current-week-range'),
+};
+
+// Parameter APIs
+export const parameterApi = {
+  getHourlyRate: () => api.get<number>('/parameters/hourly-rate'),
 };
 
 export default api;

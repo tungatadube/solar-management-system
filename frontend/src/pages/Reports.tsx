@@ -27,6 +27,7 @@ import {
   Receipt as ReceiptIcon,
   Assessment as AssessmentIcon,
   Work as WorkIcon,
+  CalendarToday as CalendarIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { invoiceApi, workLogApi, userApi, jobApi } from '../services/api';
@@ -159,6 +160,24 @@ const Reports: React.FC = () => {
     }
   };
 
+  const handleGenerateWeeklyInvoices = async () => {
+    if (!window.confirm('Generate invoices for all technicians for the current week (Monday-Friday)?')) {
+      return;
+    }
+
+    try {
+      const response = await invoiceApi.generateWeekly();
+      const generatedInvoices = response.data;
+
+      alert(`Successfully generated ${generatedInvoices.length} invoice(s) for the current week.`);
+      loadInvoices();
+      loadUninvoicedWork();
+    } catch (error: any) {
+      console.error('Failed to generate weekly invoices:', error);
+      alert(error.response?.data?.message || 'Failed to generate weekly invoices');
+    }
+  };
+
   const getStatusColor = (status: InvoiceStatus): "default" | "primary" | "secondary" | "success" | "warning" | "info" | "error" => {
     switch (status) {
       case InvoiceStatus.DRAFT: return 'default';
@@ -275,14 +294,24 @@ const Reports: React.FC = () => {
       <TabPanel value={tabValue} index={0}>
         <Box display="flex" justifyContent="space-between" mb={2}>
           <Typography variant="h6">Generated Invoices</Typography>
-          <Button
-            variant="contained"
-            startIcon={<ReceiptIcon />}
-            onClick={() => setOpenInvoiceDialog(true)}
-            disabled={!selectedUserId}
-          >
-            Generate New Invoice
-          </Button>
+          <Box>
+            <Button
+              variant="outlined"
+              startIcon={<CalendarIcon />}
+              onClick={handleGenerateWeeklyInvoices}
+              sx={{ mr: 1 }}
+            >
+              Generate Weekly Invoices
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<ReceiptIcon />}
+              onClick={() => setOpenInvoiceDialog(true)}
+              disabled={!selectedUserId}
+            >
+              Generate New Invoice
+            </Button>
+          </Box>
         </Box>
         <Paper>
           <DataGrid

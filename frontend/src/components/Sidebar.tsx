@@ -21,6 +21,7 @@ import {
   Work as WorkIcon,
   Inventory as InventoryIcon,
   MyLocation as LocationIcon,
+  Schedule as ScheduleIcon,
   Assessment as ReportIcon,
   WbSunny as SolarIcon,
   Logout as LogoutIcon,
@@ -34,6 +35,7 @@ const menuItems = [
   { text: 'Jobs', icon: <WorkIcon />, path: '/jobs' },
   { text: 'Stock Management', icon: <InventoryIcon />, path: '/stock' },
   { text: 'Location Tracking', icon: <LocationIcon />, path: '/tracking' },
+  { text: 'Work Logs', icon: <ScheduleIcon />, path: '/worklogs' },
   { text: 'Reports', icon: <ReportIcon />, path: '/reports' },
 ];
 

@@ -30,4 +30,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     
     @Query("SELECT MAX(i.invoiceNumber) FROM Invoice i WHERE i.technician = :technician")
     String findLatestInvoiceNumberByTechnician(@Param("technician") User technician);
+
+    @Query("SELECT MAX(i.invoiceNumber) FROM Invoice i")
+    String findLatestInvoiceNumber();
 }

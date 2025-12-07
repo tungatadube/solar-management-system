@@ -15,6 +15,7 @@ backend/target/
 # IDE files
 .idea/
 .vscode/
+.claude/
 *.iml
 *.swp
 *.swo

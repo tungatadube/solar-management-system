@@ -93,10 +93,8 @@ export interface Job {
   status: JobStatus;
   type: JobType;
   description?: string;
-  scheduledStartTime?: string;
-  scheduledEndTime?: string;
-  actualStartTime?: string;
-  actualEndTime?: string;
+  startTime?: string;
+  endTime?: string;
   estimatedCost?: number;
   actualCost?: number;
   systemSize?: number;

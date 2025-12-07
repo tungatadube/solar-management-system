@@ -24,7 +24,7 @@ public interface JobRepository extends JpaRepository<Job, Long> {
     @Query("SELECT j FROM Job j JOIN j.assignedTechnicians t WHERE t = :user AND j.status IN :statuses")
     List<Job> findByAssignedToAndStatusIn(@Param("user") User user, @Param("statuses") List<Job.JobStatus> statuses);
 
-    @Query("SELECT j FROM Job j WHERE j.scheduledStartTime BETWEEN :start AND :end")
+    @Query("SELECT j FROM Job j WHERE j.startTime BETWEEN :start AND :end")
     List<Job> findJobsBetweenDates(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     Page<Job> findByClientNameContainingIgnoreCase(String clientName, Pageable pageable);

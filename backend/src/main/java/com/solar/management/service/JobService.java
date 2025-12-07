@@ -11,7 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,13 +24,15 @@ import java.util.UUID;
 @Slf4j
 @Transactional
 public class JobService {
-    
+
     private final JobRepository jobRepository;
     private final LocationRepository locationRepository;
     private final UserRepository userRepository;
     private final JobImageRepository jobImageRepository;
     private final JobStockRepository jobStockRepository;
     private final TravelLogRepository travelLogRepository;
+    private final WorkLogRepository workLogRepository;
+    private final ParameterService parameterService;
     private final FileStorageService fileStorageService;
     
     public Job createJob(Job job) {
@@ -41,35 +47,112 @@ public class JobService {
     
     public Job updateJob(Long id, Job jobDetails) {
         Job job = getJobById(id);
-        
+
         job.setClientName(jobDetails.getClientName());
         job.setClientPhone(jobDetails.getClientPhone());
         job.setClientEmail(jobDetails.getClientEmail());
+        job.setType(jobDetails.getType());
         job.setDescription(jobDetails.getDescription());
-        job.setScheduledStartTime(jobDetails.getScheduledStartTime());
-        job.setScheduledEndTime(jobDetails.getScheduledEndTime());
+        job.setStartTime(jobDetails.getStartTime());
+        job.setEndTime(jobDetails.getEndTime());
         job.setEstimatedCost(jobDetails.getEstimatedCost());
         job.setSystemSize(jobDetails.getSystemSize());
         job.setNotes(jobDetails.getNotes());
-        
+
+        // Update location if provided
+        if (jobDetails.getLocation() != null) {
+            job.setLocation(jobDetails.getLocation());
+        }
+
+        // Update assigned technicians if provided
+        if (jobDetails.getAssignedTechnicians() != null) {
+            job.setAssignedTechnicians(jobDetails.getAssignedTechnicians());
+        }
+
+        log.info("Updated job {}: location_id={}, technicians={}",
+                 job.getJobNumber(),
+                 job.getLocation() != null ? job.getLocation().getId() : "null",
+                 job.getAssignedTechnicians().size());
+
         return jobRepository.save(job);
     }
     
     public Job updateJobStatus(Long id, Job.JobStatus newStatus) {
         Job job = getJobById(id);
         Job.JobStatus oldStatus = job.getStatus();
-        
+
         job.setStatus(newStatus);
-        
-        // Automatically set start/end times based on status changes
-        if (newStatus == Job.JobStatus.IN_PROGRESS && oldStatus == Job.JobStatus.SCHEDULED) {
-            job.setActualStartTime(LocalDateTime.now());
-        } else if (newStatus == Job.JobStatus.COMPLETED && oldStatus == Job.JobStatus.IN_PROGRESS) {
-            job.setActualEndTime(LocalDateTime.now());
+
+        // Create work logs when job is marked as COMPLETED
+        if (newStatus == Job.JobStatus.COMPLETED) {
+            // Check for existing work logs and delete them before creating new ones
+            List<WorkLog> existingWorkLogs = workLogRepository.findByJob(job);
+            if (!existingWorkLogs.isEmpty()) {
+                log.warn("Job {} already has {} work log(s). Deleting existing work logs before regenerating.",
+                        job.getJobNumber(), existingWorkLogs.size());
+                workLogRepository.deleteAll(existingWorkLogs);
+                log.info("Deleted {} existing work log(s) for job {}", existingWorkLogs.size(), job.getJobNumber());
+            }
+
+            // Automatically create work logs for all assigned technicians
+            if (job.getStartTime() != null && job.getEndTime() != null) {
+                createWorkLogsForJob(job);
+            } else {
+                log.warn("Job {} marked as COMPLETED but missing start/end times. Work logs not created.",
+                        job.getJobNumber());
+            }
         }
-        
+
         log.info("Job {} status changed from {} to {}", job.getJobNumber(), oldStatus, newStatus);
         return jobRepository.save(job);
+    }
+
+    private void createWorkLogsForJob(Job job) {
+        if (job.getAssignedTechnicians() == null || job.getAssignedTechnicians().isEmpty()) {
+            log.warn("Job {} has no assigned technicians. No work logs created.", job.getJobNumber());
+            return;
+        }
+
+        // Get hourly rate from parameters
+        BigDecimal hourlyRate = parameterService.getHourlyRate();
+
+        // Calculate hours worked
+        Duration duration = Duration.between(job.getStartTime(), job.getEndTime());
+        BigDecimal hoursWorked = BigDecimal.valueOf(duration.toMinutes())
+                .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+
+        // Calculate total amount
+        BigDecimal totalAmount = hoursWorked.multiply(hourlyRate)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        // Create work log for each assigned technician
+        for (User technician : job.getAssignedTechnicians()) {
+            // Determine work type based on job type
+            WorkLog.WorkType workType = determineWorkType(job.getType());
+
+            WorkLog workLog = WorkLog.builder()
+                    .user(technician)
+                    .job(job)
+                    .workDate(job.getStartTime().toLocalDate())
+                    .startTime(job.getStartTime().toLocalTime())
+                    .endTime(job.getEndTime().toLocalTime())
+                    .hoursWorked(hoursWorked)
+                    .hourlyRate(hourlyRate)
+                    .totalAmount(totalAmount)
+                    .workType(workType)
+                    .workDescription(job.getDescription() != null ? job.getDescription() : job.getType().toString())
+                    .jobAddress(job.getLocation() != null ? job.getLocation().getAddress() : "N/A")
+                    .invoiced(false)
+                    .build();
+
+            workLogRepository.save(workLog);
+            log.info("Created work log for technician {} on job {} - {} hours @ ${}/hr = ${}",
+                    technician.getUsername(),
+                    job.getJobNumber(),
+                    hoursWorked,
+                    hourlyRate,
+                    totalAmount);
+        }
     }
     
     public JobImage uploadJobImage(Long jobId, MultipartFile file, JobImage.ImageType imageType, 
@@ -173,5 +256,20 @@ public class JobService {
         String timestamp = String.valueOf(System.currentTimeMillis());
         String random = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         return prefix + "-" + timestamp.substring(timestamp.length() - 8) + "-" + random;
+    }
+
+    private WorkLog.WorkType determineWorkType(Job.JobType jobType) {
+        if (jobType == null) {
+            return WorkLog.WorkType.OTHER;
+        }
+
+        return switch (jobType) {
+            case NEW_INSTALLATION -> WorkLog.WorkType.PANEL_INSTALLATION;
+            case MAINTENANCE -> WorkLog.WorkType.MAINTENANCE;
+            case REPAIR -> WorkLog.WorkType.ELECTRICAL_WORK;
+            case INSPECTION -> WorkLog.WorkType.INSPECTION;
+            case UPGRADE -> WorkLog.WorkType.ELECTRICAL_WORK;
+            default -> WorkLog.WorkType.OTHER;
+        };
     }
 }

@@ -6,6 +6,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      TZ: Australia/Adelaide
     ports:
       - "5432:5432"
     volumes:
@@ -36,6 +37,7 @@ services:
       KC_HOSTNAME_STRICT_HTTPS: false
       KC_HTTP_ENABLED: true
       KC_HEALTH_ENABLED: true
+      TZ: Australia/Adelaide
     command: start-dev --import-realm
     ports:
       - "8180:8080"
@@ -62,6 +64,7 @@ services:
       KEYCLOAK_RESOURCE: solar-backend
       AWS_S3_BUCKET: solar-management-images
       AWS_REGION: ap-southeast-2
+      TZ: Australia/Adelaide
     ports:
       - "8080:8080"
     depends_on:
@@ -86,6 +89,7 @@ services:
     container_name: solar-frontend
     environment:
       REACT_APP_API_URL: http://backend:8080/api
+      TZ: Australia/Adelaide
     ports:
       - "3000:80"
     depends_on:

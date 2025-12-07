@@ -1,7 +1,7 @@
 // frontend/src/pages/JobsList.tsx
 
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -26,21 +26,24 @@ import {
   Visibility as ViewIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { jobApi } from '../services/api';
+import { jobApi, parameterApi } from '../services/api';
 import { Job, JobStatus, JobType } from '../types';
 import GoogleMapDisplay from '../components/GoogleMapDisplay';
 
 const JobsList: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [hourlyRate, setHourlyRate] = useState<number>(35);
 
   useEffect(() => {
     loadJobs();
-  }, []);
+    loadHourlyRate();
+  }, [location.pathname]);
 
   const loadJobs = async () => {
     try {
@@ -51,6 +54,15 @@ const JobsList: React.FC = () => {
       console.error('Failed to load jobs:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadHourlyRate = async () => {
+    try {
+      const response = await parameterApi.getHourlyRate();
+      setHourlyRate(response.data);
+    } catch (error) {
+      console.error('Failed to load hourly rate, using default:', error);
     }
   };
 
@@ -65,15 +77,6 @@ const JobsList: React.FC = () => {
     }
   };
 
-  const handleUpdateStatus = async (id: number, status: JobStatus) => {
-    try {
-      await jobApi.updateStatus(id, status);
-      loadJobs();
-    } catch (error) {
-      console.error('Failed to update job status:', error);
-    }
-  };
-
   const getStatusColor = (status: JobStatus): "default" | "primary" | "secondary" | "success" | "warning" | "info" | "error" => {
     switch (status) {
       case JobStatus.SCHEDULED: return 'info';
@@ -83,6 +86,24 @@ const JobsList: React.FC = () => {
       case JobStatus.CANCELLED: return 'error';
       default: return 'default';
     }
+  };
+
+  const calculateDuration = (job: Job): number | null => {
+    if (job.startTime && job.endTime) {
+      const start = new Date(job.startTime);
+      const end = new Date(job.endTime);
+      const durationMs = end.getTime() - start.getTime();
+      return durationMs / (1000 * 60 * 60); // Convert to hours
+    }
+    return null;
+  };
+
+  const calculateEarnings = (job: Job): number | null => {
+    const duration = calculateDuration(job);
+    if (duration !== null) {
+      return duration * hourlyRate;
+    }
+    return null;
   };
 
   const columns: GridColDef[] = [
@@ -121,10 +142,10 @@ const JobsList: React.FC = () => {
       },
     },
     {
-      field: 'scheduledStartTime',
-      headerName: 'Scheduled Start',
+      field: 'startTime',
+      headerName: 'Start Time',
       width: 180,
-      valueFormatter: (params) => 
+      valueFormatter: (params) =>
         params.value ? new Date(params.value).toLocaleString() : '',
     },
     {
@@ -258,6 +279,36 @@ const JobsList: React.FC = () => {
               <Typography>System Size: {selectedJob.systemSize} kW</Typography>
 
               <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                Time & Earnings
+              </Typography>
+              {selectedJob.startTime && (
+                <Typography>
+                  Start Time: {new Date(selectedJob.startTime).toLocaleString()}
+                </Typography>
+              )}
+              {selectedJob.endTime && (
+                <Typography>
+                  End Time: {new Date(selectedJob.endTime).toLocaleString()}
+                </Typography>
+              )}
+              {calculateDuration(selectedJob) !== null && (
+                <>
+                  <Typography>
+                    Duration: {calculateDuration(selectedJob)?.toFixed(2)} hours
+                  </Typography>
+                  <Typography>
+                    Earnings: ${calculateEarnings(selectedJob)?.toFixed(2)} AUD
+                    (@ ${hourlyRate}/hr)
+                  </Typography>
+                </>
+              )}
+              {!selectedJob.startTime && !selectedJob.endTime && (
+                <Typography color="text.secondary">
+                  Time tracking not available (job not started)
+                </Typography>
+              )}
+
+              <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                 Assigned Technicians
               </Typography>
               <Typography>
@@ -270,22 +321,6 @@ const JobsList: React.FC = () => {
                 Location
               </Typography>
               <Typography>{selectedJob.location.address}</Typography>
-              
-              <Box mt={2}>
-                <FormControl fullWidth>
-                  <InputLabel>Update Status</InputLabel>
-                  <Select
-                    value={selectedJob.status}
-                    onChange={(e) => handleUpdateStatus(selectedJob.id, e.target.value as JobStatus)}
-                  >
-                    {Object.values(JobStatus).map((status) => (
-                      <MenuItem key={status} value={status}>
-                        {status}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
             </Box>
           ) : (
             <Typography>Job creation form would go here</Typography>
