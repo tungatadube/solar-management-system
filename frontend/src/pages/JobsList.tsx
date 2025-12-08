@@ -57,8 +57,16 @@ const JobsList: React.FC = () => {
     try {
       setLoading(true);
       const response = await jobApi.getAll();
-      setJobs(response.data);
-      setFilteredJobs(response.data);
+
+      // Sort jobs by startTime (most recent first)
+      const sortedJobs = response.data.sort((a: Job, b: Job) => {
+        const dateA = a.startTime ? new Date(a.startTime).getTime() : 0;
+        const dateB = b.startTime ? new Date(b.startTime).getTime() : 0;
+        return dateB - dateA; // Descending order (newest first)
+      });
+
+      setJobs(sortedJobs);
+      setFilteredJobs(sortedJobs);
     } catch (error) {
       console.error('Failed to load jobs:', error);
     } finally {
