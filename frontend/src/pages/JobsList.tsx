@@ -24,6 +24,8 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as ViewIcon,
+  FilterAlt as FilterIcon,
+  ClearAll as ClearIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { jobApi, parameterApi } from '../services/api';
@@ -34,11 +36,17 @@ const JobsList: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [hourlyRate, setHourlyRate] = useState<number>(35);
+
+  // Filter states
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     loadJobs();
@@ -50,11 +58,49 @@ const JobsList: React.FC = () => {
       setLoading(true);
       const response = await jobApi.getAll();
       setJobs(response.data);
+      setFilteredJobs(response.data);
     } catch (error) {
       console.error('Failed to load jobs:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Apply filters whenever filter criteria or jobs change
+  useEffect(() => {
+    applyFilters();
+  }, [jobs, statusFilter, typeFilter, searchQuery]);
+
+  const applyFilters = () => {
+    let filtered = [...jobs];
+
+    // Status filter
+    if (statusFilter !== 'ALL') {
+      filtered = filtered.filter(job => job.status === statusFilter);
+    }
+
+    // Type filter
+    if (typeFilter !== 'ALL') {
+      filtered = filtered.filter(job => job.type === typeFilter);
+    }
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(job =>
+        job.jobNumber.toLowerCase().includes(query) ||
+        job.clientName.toLowerCase().includes(query) ||
+        job.location?.address?.toLowerCase().includes(query)
+      );
+    }
+
+    setFilteredJobs(filtered);
+  };
+
+  const handleClearFilters = () => {
+    setStatusFilter('ALL');
+    setTypeFilter('ALL');
+    setSearchQuery('');
   };
 
   const loadHourlyRate = async () => {
@@ -149,6 +195,22 @@ const JobsList: React.FC = () => {
         params.value ? new Date(params.value).toLocaleString() : '',
     },
     {
+      field: 'endTime',
+      headerName: 'End Time',
+      width: 180,
+      valueFormatter: (params) =>
+        params.value ? new Date(params.value).toLocaleString() : '',
+    },
+    {
+      field: 'totalHours',
+      headerName: 'Total Hours',
+      width: 120,
+      valueGetter: (params) => {
+        const duration = calculateDuration(params.row);
+        return duration !== null ? duration.toFixed(2) : 'N/A';
+      },
+    },
+    {
       field: 'actions',
       headerName: 'Actions',
       width: 150,
@@ -207,15 +269,86 @@ const JobsList: React.FC = () => {
         </Box>
       </Box>
 
+      {/* Filters */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom display="flex" alignItems="center" gap={1}>
+          <FilterIcon />
+          Filters
+        </Typography>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={3}>
+            <TextField
+              label="Search"
+              placeholder="Job #, Client, Address"
+              fullWidth
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth>
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                label="Status"
+              >
+                <MenuItem value="ALL">All Statuses</MenuItem>
+                {Object.values(JobStatus).map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {status}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth>
+              <InputLabel>Type</InputLabel>
+              <Select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                label="Type"
+              >
+                <MenuItem value="ALL">All Types</MenuItem>
+                {Object.values(JobType).map((type) => (
+                  <MenuItem key={type} value={type}>
+                    {type}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <Button
+              variant="outlined"
+              startIcon={<ClearIcon />}
+              onClick={handleClearFilters}
+              fullWidth
+            >
+              Clear Filters
+            </Button>
+          </Grid>
+        </Grid>
+        <Box mt={2}>
+          <Typography variant="body2" color="textSecondary">
+            Showing {filteredJobs.length} of {jobs.length} jobs
+          </Typography>
+        </Box>
+      </Paper>
+
       {viewMode === 'list' ? (
         <Paper>
           <DataGrid
-            rows={jobs}
+            rows={filteredJobs}
             columns={columns}
             loading={loading}
             pageSizeOptions={[10, 25, 50]}
             initialState={{
-              pagination: { paginationModel: { pageSize: 10 } },
+              pagination: { paginationModel: { pageSize: 25 } },
+              sorting: {
+                sortModel: [{ field: 'startTime', sort: 'desc' }],
+              },
             }}
             autoHeight
           />
@@ -225,7 +358,7 @@ const JobsList: React.FC = () => {
           <GoogleMapDisplay
             center={{ lat: -34.9285, lng: 138.6007 }}
             zoom={10}
-            markers={jobs.map((job) => ({
+            markers={filteredJobs.map((job) => ({
               id: job.id,
               position: {
                 lat: job.location.latitude,
