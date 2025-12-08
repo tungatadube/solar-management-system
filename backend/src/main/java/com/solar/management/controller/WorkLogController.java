@@ -4,6 +4,7 @@ import com.solar.management.entity.WorkLog;
 import com.solar.management.repository.WorkLogRepository;
 import com.solar.management.repository.UserRepository;
 import com.solar.management.repository.JobRepository;
+import com.solar.management.repository.InvoiceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -18,10 +19,11 @@ import java.util.List;
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class WorkLogController {
-    
+
     private final WorkLogRepository workLogRepository;
     private final UserRepository userRepository;
     private final JobRepository jobRepository;
+    private final InvoiceRepository invoiceRepository;
     
     /**
      * Create a new work log
@@ -125,16 +127,21 @@ public class WorkLogController {
     
     /**
      * Delete work log
+     * If the work log is invoiced, it will be removed from the invoice and the invoice totals will be recalculated
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteWorkLog(@PathVariable Long id) {
         WorkLog workLog = workLogRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Work log not found"));
-        
-        if (workLog.getInvoiced()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+
+        // If invoiced, remove from invoice and recalculate invoice totals
+        if (workLog.getInvoiced() && workLog.getInvoice() != null) {
+            var invoice = workLog.getInvoice();
+            invoice.getWorkLogs().remove(workLog);
+            invoice.calculateTotals();
+            invoiceRepository.save(invoice);
         }
-        
+
         workLogRepository.delete(workLog);
         return ResponseEntity.noContent().build();
     }

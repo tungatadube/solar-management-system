@@ -39,7 +39,7 @@ public class InvoiceController {
     }
     
     /**
-     * Generate Excel file for an existing invoice
+     * Generate PDF file for an existing invoice
      */
     @PostMapping("/{id}/generate-excel")
     public ResponseEntity<String> generateExcelInvoice(@PathVariable Long id) {
@@ -48,32 +48,32 @@ public class InvoiceController {
             return ResponseEntity.ok(filePath);
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to generate Excel: " + e.getMessage());
+                    .body("Failed to generate PDF: " + e.getMessage());
         }
     }
-    
+
     /**
-     * Download invoice Excel file
+     * Download invoice PDF file
      */
     @GetMapping("/{id}/download")
     public ResponseEntity<Resource> downloadInvoice(@PathVariable Long id) {
         try {
             Invoice invoice = invoiceService.getInvoiceById(id);
-            
+
             if (invoice.getFileUrl() == null) {
                 // Generate if not exists
                 invoiceService.generateExcelInvoice(id);
                 invoice = invoiceService.getInvoiceById(id);
             }
-            
+
             Resource file = new FileSystemResource(Paths.get("./uploads", invoice.getFileUrl()));
-            
+
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, 
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
                            "attachment; filename=\"" + file.getFilename() + "\"")
-                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .contentType(MediaType.APPLICATION_PDF)
                     .body(file);
-                    
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }

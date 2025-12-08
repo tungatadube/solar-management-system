@@ -88,14 +88,16 @@ const WorkLogs: React.FC = () => {
   };
 
   const handleDelete = async (id: number, workLog: WorkLog) => {
-    // Check if invoiced
+    // Build confirmation message
+    let confirmMessage = `Are you sure you want to delete this work log?\n\nDate: ${workLog.workDate}\nAddress: ${workLog.jobAddress}\nHours: ${workLog.hoursWorked.toFixed(2)}\nAmount: $${workLog.totalAmount.toFixed(2)}`;
+
+    // Warn if invoiced
     if (workLog.invoiced) {
-      alert('Cannot delete this work log because it has already been invoiced.');
-      return;
+      confirmMessage += '\n\n⚠️ WARNING: This work log has been INVOICED!\nDeleting it will remove it from the invoice and recalculate the invoice totals.';
     }
 
     // Show confirmation dialog
-    if (!window.confirm(`Are you sure you want to delete this work log?\n\nDate: ${workLog.workDate}\nAddress: ${workLog.jobAddress}\nHours: ${workLog.hoursWorked.toFixed(2)}\nAmount: $${workLog.totalAmount.toFixed(2)}`)) {
+    if (!window.confirm(confirmMessage)) {
       return;
     }
 
@@ -103,12 +105,9 @@ const WorkLogs: React.FC = () => {
       await workLogApi.delete(id);
       // Reload work logs after successful deletion
       await loadWorkLogs();
+      alert('Work log deleted successfully' + (workLog.invoiced ? '. The associated invoice has been updated.' : '.'));
     } catch (error: any) {
-      if (error.response?.status === 409) {
-        alert('Cannot delete this work log because it has already been invoiced.');
-      } else {
-        alert('Failed to delete work log: ' + (error.response?.data?.message || error.message || 'Unknown error'));
-      }
+      alert('Failed to delete work log: ' + (error.response?.data?.message || error.message || 'Unknown error'));
       console.error('Failed to delete work log:', error);
     }
   };
@@ -193,8 +192,7 @@ const WorkLogs: React.FC = () => {
           size="small"
           color="error"
           onClick={() => handleDelete(params.row.id, params.row)}
-          disabled={params.row.invoiced}
-          title={params.row.invoiced ? 'Cannot delete invoiced work log' : 'Delete work log'}
+          title={params.row.invoiced ? 'Delete work log (will update invoice)' : 'Delete work log'}
         >
           <DeleteIcon />
         </IconButton>
