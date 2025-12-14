@@ -120,27 +120,4 @@ public class InvoiceController {
 
         return ResponseEntity.ok(invoice);
     }
-
-    /**
-     * Manually trigger weekly invoice generation for all technicians
-     * Generates invoices for current week (Monday-Friday)
-     */
-    @PostMapping("/generate-weekly")
-    public ResponseEntity<List<Invoice>> generateWeeklyInvoices() {
-        try {
-            List<Invoice> invoices = invoiceService.generateWeeklyInvoices();
-            return ResponseEntity.ok(invoices);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    /**
-     * Get current week date range (Monday-Friday)
-     */
-    @GetMapping("/current-week-range")
-    public ResponseEntity<java.util.Map<String, LocalDate>> getCurrentWeekRange() {
-        java.util.Map<String, LocalDate> weekRange = invoiceService.getCurrentWeekRange();
-        return ResponseEntity.ok(weekRange);
-    }
 }
