@@ -522,22 +522,31 @@ const JobEdit: React.FC = () => {
 
               {/* Action Buttons */}
               <Grid item xs={12}>
-                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'space-between', mt: 2 }}>
                   <Button
                     variant="outlined"
-                    onClick={() => navigate('/jobs')}
-                    disabled={loading}
+                    color="info"
+                    onClick={() => navigate(`/solar-optimizer/job/${id}`)}
                   >
-                    Cancel
+                    Solar Panel Optimizer
                   </Button>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    disabled={loading}
-                    startIcon={loading && <CircularProgress size={20} />}
-                  >
-                    {loading ? 'Updating...' : 'Update Job'}
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => navigate('/jobs')}
+                      disabled={loading}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      disabled={loading}
+                      startIcon={loading && <CircularProgress size={20} />}
+                    >
+                      {loading ? 'Updating...' : 'Update Job'}
+                    </Button>
+                  </Box>
                 </Box>
               </Grid>
             </Grid>

@@ -14,6 +14,7 @@ import StockManagement from './pages/StockManagement';
 import LocationTracking from './pages/LocationTracking';
 import WorkLogs from './pages/WorkLogs';
 import Reports from './pages/Reports';
+import SolarOptimizer from './pages/SolarOptimizer';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -118,6 +119,8 @@ const App: React.FC = () => {
                   <Route path="/tracking" element={<LocationTracking />} />
                   <Route path="/worklogs" element={<WorkLogs />} />
                   <Route path="/reports" element={<Reports />} />
+                  <Route path="/solar-optimizer" element={<SolarOptimizer />} />
+                  <Route path="/solar-optimizer/job/:jobId" element={<SolarOptimizer />} />
                 </Routes>
               </Box>
             </Box>

@@ -36,6 +36,7 @@ const menuItems = [
   { text: 'Stock Management', icon: <InventoryIcon />, path: '/stock' },
   { text: 'Location Tracking', icon: <LocationIcon />, path: '/tracking' },
   { text: 'Work Logs', icon: <ScheduleIcon />, path: '/worklogs' },
+  { text: 'Solar Optimizer', icon: <SolarIcon />, path: '/solar-optimizer' },
   { text: 'Reports', icon: <ReportIcon />, path: '/reports' },
 ];
 
