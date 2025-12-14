@@ -149,4 +149,52 @@ export const parameterApi = {
   getHourlyRate: () => api.get<number>('/parameters/hourly-rate'),
 };
 
+// Solar Optimizer APIs
+export interface SolarAnalysisRequest {
+  jobId?: number;
+  address?: string;
+  latitude: number;
+  longitude: number;
+  roofArea: number;
+  targetCapacity: number;
+  roofType: string;
+}
+
+export interface SolarAnalysis {
+  id: number;
+  jobId?: number;
+  address?: string;
+  latitude: number;
+  longitude: number;
+  roofArea: number;
+  usableArea: number;
+  roofPitch: number;
+  roofOrientation: string;
+  shadingFactor: number;
+  optimalAzimuth: number;
+  optimalTilt: number;
+  numberOfPanels: number;
+  systemCapacity: number;
+  panelWattage: number;
+  annualProduction: number;
+  dailyAverage: number;
+  peakSunHours: number;
+  layoutRows: number;
+  layoutColumns: number;
+  panelSpacing: number;
+  materials?: any;
+  analyzedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const solarOptimizerApi = {
+  analyze: (request: SolarAnalysisRequest) => api.post<SolarAnalysis>('/solar-optimizer/analyze', request),
+  calculate: (request: Partial<SolarAnalysisRequest>) => api.post<SolarAnalysis>('/solar-optimizer/calculate', request),
+  getById: (id: number) => api.get<SolarAnalysis>(`/solar-optimizer/${id}`),
+  getByJobId: (jobId: number) => api.get<SolarAnalysis>(`/solar-optimizer/job/${jobId}`),
+  update: (id: number, updates: Partial<SolarAnalysis>) => api.put<SolarAnalysis>(`/solar-optimizer/${id}`, updates),
+  delete: (id: number) => api.delete(`/solar-optimizer/${id}`),
+};
+
 export default api;

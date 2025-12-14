@@ -204,3 +204,45 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO parameters (parameter_key, parameter_value, description, type) VALUES
 ('HOURLY_RATE', '35.00', 'Hourly rate for technician work in AUD', 'DECIMAL')
 ON CONFLICT (parameter_key) DO NOTHING;
+
+-- Solar Analysis table (for solar panel optimization)
+CREATE TABLE IF NOT EXISTS solar_analyses (
+    id BIGSERIAL PRIMARY KEY,
+    job_id BIGINT REFERENCES jobs(id),
+    address VARCHAR(500),
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+
+    -- Roof measurements
+    roof_area DECIMAL(10, 2),
+    usable_area DECIMAL(10, 2),
+    roof_pitch DECIMAL(5, 2),
+    roof_orientation VARCHAR(50),
+    shading_factor DECIMAL(3, 2),
+
+    -- Optimal configuration
+    optimal_azimuth DECIMAL(5, 2),
+    optimal_tilt DECIMAL(5, 2),
+    number_of_panels INT,
+    system_capacity DECIMAL(10, 2),
+    panel_wattage INT,
+
+    -- Production estimates
+    annual_production DECIMAL(10, 2),
+    daily_average DECIMAL(10, 2),
+    peak_sun_hours DECIMAL(5, 2),
+
+    -- Panel layout
+    layout_rows INT,
+    layout_columns INT,
+    panel_spacing DECIMAL(5, 2),
+
+    -- Note: Materials stored separately or returned dynamically
+    analyzed_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for solar analyses
+CREATE INDEX IF NOT EXISTS idx_solar_analyses_job ON solar_analyses(job_id);
+CREATE INDEX IF NOT EXISTS idx_solar_analyses_location ON solar_analyses(latitude, longitude);
