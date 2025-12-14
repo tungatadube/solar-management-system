@@ -62,6 +62,7 @@ const Reports: React.FC = () => {
     billToPhone: '0450 120 602',
     billToEmail: 'admin@nelvinelectrical.com.au',
   });
+  const [datePreset, setDatePreset] = useState<string>('custom');
 
   useEffect(() => {
     loadUsers();
@@ -103,6 +104,70 @@ const Reports: React.FC = () => {
       setWorkLogs(response.data);
     } catch (error) {
       console.error('Failed to load uninvoiced work:', error);
+    }
+  };
+
+  const getDateRange = (preset: string): { startDate: string; endDate: string } => {
+    const today = new Date();
+    let start: Date;
+    let end: Date;
+
+    switch (preset) {
+      case 'this-week':
+        // Get Monday of current week
+        const dayOfWeek = today.getDay();
+        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        start = new Date(today);
+        start.setDate(today.getDate() + diffToMonday);
+        // Get Friday of current week
+        end = new Date(start);
+        end.setDate(start.getDate() + 4);
+        break;
+
+      case 'last-week':
+        // Get Monday of last week
+        const lastWeekStart = new Date(today);
+        const daysToLastMonday = today.getDay() === 0 ? -13 : -6 - today.getDay();
+        lastWeekStart.setDate(today.getDate() + daysToLastMonday);
+        start = lastWeekStart;
+        // Get Friday of last week
+        end = new Date(start);
+        end.setDate(start.getDate() + 4);
+        break;
+
+      case 'this-month':
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        break;
+
+      case 'last-month':
+        start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        end = new Date(today.getFullYear(), today.getMonth(), 0);
+        break;
+
+      default: // custom
+        return { startDate: '', endDate: '' };
+    }
+
+    const formatDate = (date: Date) => {
+      return date.toISOString().split('T')[0];
+    };
+
+    return {
+      startDate: formatDate(start),
+      endDate: formatDate(end),
+    };
+  };
+
+  const handleDatePresetChange = (preset: string) => {
+    setDatePreset(preset);
+    if (preset !== 'custom') {
+      const range = getDateRange(preset);
+      setInvoiceForm({
+        ...invoiceForm,
+        startDate: range.startDate,
+        endDate: range.endDate,
+      });
     }
   };
 
@@ -157,24 +222,6 @@ const Reports: React.FC = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Failed to download invoice:', error);
-    }
-  };
-
-  const handleGenerateWeeklyInvoices = async () => {
-    if (!window.confirm('Generate invoices for all technicians for the current week (Monday-Friday)?')) {
-      return;
-    }
-
-    try {
-      const response = await invoiceApi.generateWeekly();
-      const generatedInvoices = response.data;
-
-      alert(`Successfully generated ${generatedInvoices.length} invoice(s) for the current week.`);
-      loadInvoices();
-      loadUninvoicedWork();
-    } catch (error: any) {
-      console.error('Failed to generate weekly invoices:', error);
-      alert(error.response?.data?.message || 'Failed to generate weekly invoices');
     }
   };
 
@@ -294,24 +341,14 @@ const Reports: React.FC = () => {
       <TabPanel value={tabValue} index={0}>
         <Box display="flex" justifyContent="space-between" mb={2}>
           <Typography variant="h6">Generated Invoices</Typography>
-          <Box>
-            <Button
-              variant="outlined"
-              startIcon={<CalendarIcon />}
-              onClick={handleGenerateWeeklyInvoices}
-              sx={{ mr: 1 }}
-            >
-              Generate Weekly Invoices
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<ReceiptIcon />}
-              onClick={() => setOpenInvoiceDialog(true)}
-              disabled={!selectedUserId}
-            >
-              Generate New Invoice
-            </Button>
-          </Box>
+          <Button
+            variant="contained"
+            startIcon={<ReceiptIcon />}
+            onClick={() => setOpenInvoiceDialog(true)}
+            disabled={!selectedUserId}
+          >
+            Generate Invoice
+          </Button>
         </Box>
         <Paper>
           <DataGrid
@@ -406,14 +443,34 @@ const Reports: React.FC = () => {
         <DialogTitle>Generate Invoice</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Date Range</InputLabel>
+                <Select
+                  value={datePreset}
+                  label="Date Range"
+                  onChange={(e) => handleDatePresetChange(e.target.value)}
+                >
+                  <MenuItem value="this-week">This Week (Mon-Fri)</MenuItem>
+                  <MenuItem value="last-week">Last Week (Mon-Fri)</MenuItem>
+                  <MenuItem value="this-month">This Month</MenuItem>
+                  <MenuItem value="last-month">Last Month</MenuItem>
+                  <MenuItem value="custom">Custom Date Range</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 label="Start Date"
                 type="date"
                 fullWidth
+                required
                 InputLabelProps={{ shrink: true }}
                 value={invoiceForm.startDate}
-                onChange={(e) => setInvoiceForm({ ...invoiceForm, startDate: e.target.value })}
+                onChange={(e) => {
+                  setInvoiceForm({ ...invoiceForm, startDate: e.target.value });
+                  setDatePreset('custom');
+                }}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -421,9 +478,13 @@ const Reports: React.FC = () => {
                 label="End Date"
                 type="date"
                 fullWidth
+                required
                 InputLabelProps={{ shrink: true }}
                 value={invoiceForm.endDate}
-                onChange={(e) => setInvoiceForm({ ...invoiceForm, endDate: e.target.value })}
+                onChange={(e) => {
+                  setInvoiceForm({ ...invoiceForm, endDate: e.target.value });
+                  setDatePreset('custom');
+                }}
               />
             </Grid>
             <Grid item xs={12}>
