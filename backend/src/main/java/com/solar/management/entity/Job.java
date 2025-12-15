@@ -22,7 +22,7 @@ import java.util.Set;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(exclude = {"assignedTechnicians", "jobStocks", "jobImages", "travelLogs"})
+@EqualsAndHashCode(exclude = {"assignedTechnicians", "jobStocks", "jobImages", "travelLogs", "workLogs"})
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Job {
     
@@ -83,18 +83,22 @@ public class Job {
     @Column
     private String notes;
     
-    @OneToMany(mappedBy = "job", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "job", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private Set<JobStock> jobStocks = new HashSet<>();
 
-    @OneToMany(mappedBy = "job", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "job", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private Set<JobImage> jobImages = new HashSet<>();
 
-    @OneToMany(mappedBy = "job", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "job", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private Set<TravelLog> travelLogs = new HashSet<>();
-    
+
+    @OneToMany(mappedBy = "job", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private Set<WorkLog> workLogs = new HashSet<>();
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
