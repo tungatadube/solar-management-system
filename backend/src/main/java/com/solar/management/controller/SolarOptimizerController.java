@@ -31,7 +31,8 @@ public class SolarOptimizerController {
                 request.getLongitude(),
                 request.getRoofArea(),
                 request.getTargetCapacity(),
-                request.getRoofType()
+                request.getRoofType(),
+                request.getCoordinates()
             );
             return ResponseEntity.ok(analysis);
         } catch (Exception e) {
@@ -127,6 +128,13 @@ public class SolarOptimizerController {
         private Double roofArea;
         private Double targetCapacity;
         private String roofType; // tile, metal, flat
+        private java.util.List<Coordinate> coordinates; // roof polygon coordinates
+    }
+
+    @Data
+    public static class Coordinate {
+        private Double lat;
+        private Double lng;
     }
 
     @Data
