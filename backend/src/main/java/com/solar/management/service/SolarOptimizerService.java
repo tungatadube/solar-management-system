@@ -199,6 +199,6 @@ public class SolarOptimizerService {
         Double roofArea,
         Double targetCapacity
     ) {
-        return performAnalysis(null, null, latitude, longitude, roofArea, targetCapacity, "tile");
+        return performAnalysis(null, null, latitude, longitude, roofArea, targetCapacity, "tile", null);
     }
 }
