@@ -251,4 +251,84 @@ public class SolarCalculationService {
     public double calculateDailyAverage(double annualProduction) {
         return annualProduction / 365.0;
     }
+
+    /**
+     * Calculate the azimuth (compass bearing) of a roof polygon
+     * Uses the longest edge of the polygon to determine orientation
+     * @param coordinates List of polygon coordinates
+     * @return Azimuth in degrees (0-360, where 0=North, 90=East, 180=South, 270=West)
+     */
+    public double calculateRoofAzimuth(java.util.List<com.solar.management.controller.SolarOptimizerController.Coordinate> coordinates) {
+        if (coordinates == null || coordinates.size() < 3) {
+            log.warn("Invalid coordinates for azimuth calculation, using optimal azimuth");
+            return -1; // Signal to use optimal azimuth instead
+        }
+
+        // Find the longest edge - this typically represents the roof ridge line
+        double maxDistance = 0;
+        double azimuthOfLongestEdge = 0;
+
+        for (int i = 0; i < coordinates.size(); i++) {
+            var p1 = coordinates.get(i);
+            var p2 = coordinates.get((i + 1) % coordinates.size());
+
+            // Calculate distance between points
+            double distance = calculateDistance(p1.getLat(), p1.getLng(), p2.getLat(), p2.getLng());
+
+            if (distance > maxDistance) {
+                maxDistance = distance;
+                // Calculate bearing from p1 to p2
+                azimuthOfLongestEdge = calculateBearing(p1.getLat(), p1.getLng(), p2.getLat(), p2.getLng());
+            }
+        }
+
+        // The roof face is perpendicular to the ridge line
+        // Add 90 degrees to get the direction the roof faces
+        double roofAzimuth = (azimuthOfLongestEdge + 90) % 360;
+
+        log.info("Calculated roof azimuth: {} degrees (from longest edge bearing: {})",
+                roofAzimuth, azimuthOfLongestEdge);
+
+        return roofAzimuth;
+    }
+
+    /**
+     * Calculate distance between two geographic coordinates (Haversine formula)
+     * @return Distance in meters
+     */
+    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+        final double R = 6371000; // Earth's radius in meters
+
+        double lat1Rad = Math.toRadians(lat1);
+        double lat2Rad = Math.toRadians(lat2);
+        double deltaLat = Math.toRadians(lat2 - lat1);
+        double deltaLon = Math.toRadians(lon2 - lon1);
+
+        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+                   Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+                   Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c;
+    }
+
+    /**
+     * Calculate bearing (azimuth) from one point to another
+     * @return Bearing in degrees (0-360)
+     */
+    private double calculateBearing(double lat1, double lon1, double lat2, double lon2) {
+        double lat1Rad = Math.toRadians(lat1);
+        double lat2Rad = Math.toRadians(lat2);
+        double deltaLon = Math.toRadians(lon2 - lon1);
+
+        double y = Math.sin(deltaLon) * Math.cos(lat2Rad);
+        double x = Math.cos(lat1Rad) * Math.sin(lat2Rad) -
+                   Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(deltaLon);
+
+        double bearing = Math.toDegrees(Math.atan2(y, x));
+
+        // Normalize to 0-360
+        return (bearing + 360) % 360;
+    }
 }
