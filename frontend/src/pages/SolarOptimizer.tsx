@@ -29,8 +29,12 @@ import {
   Build,
   Schedule,
 } from '@mui/icons-material';
+import { LoadScript } from '@react-google-maps/api';
 import RoofMeasurement, { RoofMeasurementData } from '../components/RoofMeasurement';
 import { solarOptimizerApi, SolarAnalysis, SolarAnalysisRequest } from '../services/api';
+
+const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '';
+const libraries: ("drawing" | "geometry" | "places")[] = ["drawing", "geometry", "places"];
 
 const SolarOptimizer: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>();
@@ -76,6 +80,7 @@ const SolarOptimizer: React.FC = () => {
         roofArea: data.roofArea,
         targetCapacity: data.targetCapacity,
         roofType: data.roofType,
+        coordinates: data.coordinates,
       };
 
       const response = await solarOptimizerApi.analyze(request);
@@ -108,40 +113,61 @@ const SolarOptimizer: React.FC = () => {
     }).format(value);
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  return (
+    <LoadScript
+      googleMapsApiKey={GOOGLE_MAPS_API_KEY}
+      libraries={libraries}
+      loadingElement={
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+          <CircularProgress />
+        </Box>
+      }
+    >
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+          <CircularProgress />
+        </Box>
+      ) : showMeasurement || !analysis ? (
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h4" gutterBottom>
+            Solar Panel Optimizer
+          </Typography>
+          <Typography variant="body1" color="text.secondary" paragraph>
+            Measure the roof area and calculate the optimal solar panel configuration
+          </Typography>
 
-  if (showMeasurement || !analysis) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom>
-          Solar Panel Optimizer
-        </Typography>
-        <Typography variant="body1" color="text.secondary" paragraph>
-          Measure the roof area and calculate the optimal solar panel configuration
-        </Typography>
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
+          <RoofMeasurement
+            onMeasurementComplete={handleMeasurementComplete}
+            initialLatitude={analysis?.latitude}
+            initialLongitude={analysis?.longitude}
+          />
+        </Box>
+      ) : (
+        renderAnalysisResults(analysis, handleRecalculate, handleSaveToJob, jobId)
+      )}
+    </LoadScript>
+  );
 
-        <RoofMeasurement
-          onMeasurementComplete={handleMeasurementComplete}
-          initialLatitude={analysis?.latitude}
-          initialLongitude={analysis?.longitude}
-        />
-      </Box>
-    );
-  }
-
+  function renderAnalysisResults(
+    analysis: SolarAnalysis,
+    handleRecalculate: () => void,
+    handleSaveToJob: () => void,
+    jobId?: string
+  ) {
   const materials = analysis.materials;
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-AU', {
+      style: 'currency',
+      currency: 'AUD',
+    }).format(value);
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -478,6 +504,7 @@ const SolarOptimizer: React.FC = () => {
       </Grid>
     </Box>
   );
+  }
 };
 
 export default SolarOptimizer;

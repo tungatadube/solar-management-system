@@ -156,6 +156,7 @@ export interface SolarAnalysisRequest {
   roofArea: number;
   targetCapacity: number;
   roofType: string;
+  coordinates: Array<{ lat: number; lng: number }>;
 }
 
 export interface SolarAnalysis {
