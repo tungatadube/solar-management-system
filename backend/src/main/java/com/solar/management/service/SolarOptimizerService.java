@@ -38,7 +38,8 @@ public class SolarOptimizerService {
         Double longitude,
         Double roofArea,
         Double targetCapacity,
-        String roofType
+        String roofType,
+        java.util.List<com.solar.management.controller.SolarOptimizerController.Coordinate> coordinates
     ) {
         log.info("Performing solar analysis for address: {}, capacity: {}kW", address, targetCapacity);
 
@@ -49,8 +50,13 @@ public class SolarOptimizerService {
                 .orElseThrow(() -> new RuntimeException("Job not found"));
         }
 
-        // Calculate optimal angles
+        // Calculate actual roof azimuth from polygon coordinates
+        double actualRoofAzimuth = calculationService.calculateRoofAzimuth(coordinates);
+
+        // If we couldn't calculate from coordinates, use optimal azimuth as fallback
         double optimalAzimuth = calculationService.calculateOptimalAzimuth(latitude);
+        double roofAzimuth = (actualRoofAzimuth >= 0) ? actualRoofAzimuth : optimalAzimuth;
+
         double optimalTilt = calculationService.calculateOptimalTilt(latitude);
 
         // Calculate number of panels needed
@@ -102,8 +108,12 @@ public class SolarOptimizerService {
 
         // Calculate roof details
         double roofPitch = calculationService.estimateRoofPitch(roofType);
-        String roofOrientation = calculationService.getOrientationFromAzimuth(optimalAzimuth);
+        String roofOrientation = calculationService.getOrientationFromAzimuth(roofAzimuth);
         double usableArea = roofArea * USABLE_ROOF_PERCENTAGE;
+
+        log.info("Roof orientation: {} ({}°), Optimal for location would be: {} ({}°)",
+                roofOrientation, roofAzimuth,
+                calculationService.getOrientationFromAzimuth(optimalAzimuth), optimalAzimuth);
 
         // Create analysis entity
         SolarAnalysis analysis = SolarAnalysis.builder()
