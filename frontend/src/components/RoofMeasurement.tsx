@@ -1,7 +1,7 @@
 // frontend/src/components/RoofMeasurement.tsx
 
 import React, { useState, useCallback, useRef } from 'react';
-import { GoogleMap, LoadScript, Polygon, DrawingManager } from '@react-google-maps/api';
+import { GoogleMap, DrawingManager } from '@react-google-maps/api';
 import {
   Box,
   Paper,
@@ -16,6 +16,7 @@ import {
   MenuItem,
 } from '@mui/material';
 import { calculatePolygonArea } from '../utils/mapUtils';
+import GoogleMapsAutocomplete from './GoogleMapsAutocomplete';
 
 interface RoofMeasurementProps {
   onMeasurementComplete: (data: RoofMeasurementData) => void;
@@ -34,8 +35,6 @@ export interface RoofMeasurementData {
   coordinates: Array<{ lat: number; lng: number }>;
 }
 
-const libraries: ("drawing" | "geometry")[] = ["drawing", "geometry"];
-
 const mapContainerStyle = {
   width: '100%',
   height: '500px',
@@ -45,8 +44,6 @@ const defaultCenter = {
   lat: -34.9285,
   lng: 138.6007,
 };
-
-const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '';
 
 const RoofMeasurement: React.FC<RoofMeasurementProps> = ({
   onMeasurementComplete,
@@ -185,66 +182,59 @@ const RoofMeasurement: React.FC<RoofMeasurementProps> = ({
       <Grid container spacing={3}>
         {/* Address Search */}
         <Grid item xs={12}>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-              fullWidth
-              label="Property Address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleAddressSearch()}
-              placeholder="Enter address to locate on map"
-            />
-            <Button variant="contained" onClick={handleAddressSearch}>
-              Search
-            </Button>
-          </Box>
+          <GoogleMapsAutocomplete
+            onPlaceSelected={(place) => {
+              setAddress(place.address);
+              const newCenter = { lat: place.latitude, lng: place.longitude };
+              setCenter(newCenter);
+
+              if (mapRef.current) {
+                mapRef.current.panTo(newCenter);
+                mapRef.current.setZoom(20);
+              }
+
+              setError('');
+            }}
+            label="Property Address"
+            helperText="Start typing to search for an address"
+            defaultValue={address}
+          />
         </Grid>
 
         {/* Map */}
         <Grid item xs={12}>
-          {GOOGLE_MAPS_API_KEY ? (
-            <LoadScript
-              googleMapsApiKey={GOOGLE_MAPS_API_KEY}
-              libraries={libraries}
-            >
-              <GoogleMap
-                mapContainerStyle={mapContainerStyle}
-                center={center}
-                zoom={20}
-                mapTypeId="satellite"
-                onLoad={onMapLoad}
-                options={{
-                  tilt: 0,
-                  mapTypeControl: true,
-                  streetViewControl: false,
-                }}
-              >
-                <DrawingManager
-                  onPolygonComplete={handlePolygonComplete}
-                  options={{
-                    drawingControl: true,
-                    drawingControlOptions: {
-                      position: google.maps.ControlPosition.TOP_CENTER,
-                      drawingModes: [google.maps.drawing.OverlayType.POLYGON],
-                    },
-                    polygonOptions: {
-                      fillColor: '#FF6B6B',
-                      fillOpacity: 0.4,
-                      strokeWeight: 2,
-                      strokeColor: '#FF0000',
-                      clickable: false,
-                      editable: true,
-                      zIndex: 1,
-                    },
-                  }}
-                />
-              </GoogleMap>
-            </LoadScript>
-          ) : (
-            <Alert severity="warning">
-              Google Maps API key not configured. Please set REACT_APP_GOOGLE_MAPS_API_KEY in your environment.
-            </Alert>
-          )}
+          <GoogleMap
+            mapContainerStyle={mapContainerStyle}
+            center={center}
+            zoom={20}
+            mapTypeId="satellite"
+            onLoad={onMapLoad}
+            options={{
+              tilt: 0,
+              mapTypeControl: true,
+              streetViewControl: false,
+            }}
+          >
+            <DrawingManager
+              onPolygonComplete={handlePolygonComplete}
+              options={{
+                drawingControl: true,
+                drawingControlOptions: {
+                  position: window.google?.maps?.ControlPosition?.TOP_CENTER || 2,
+                  drawingModes: [window.google?.maps?.drawing?.OverlayType?.POLYGON || 'polygon'],
+                },
+                polygonOptions: {
+                  fillColor: '#FF6B6B',
+                  fillOpacity: 0.4,
+                  strokeWeight: 2,
+                  strokeColor: '#FF0000',
+                  clickable: false,
+                  editable: true,
+                  zIndex: 1,
+                },
+              }}
+            />
+          </GoogleMap>
         </Grid>
 
         {/* Measurement Results */}
