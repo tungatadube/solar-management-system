@@ -47,7 +47,8 @@ public class PdfInvoiceGenerator {
             PdfFont boldFont = PdfFontFactory.createFont("Helvetica-Bold");
 
             document.setFont(regularFont);
-            document.setFontSize(10);
+            document.setFontSize(9);
+            document.setMargins(30, 30, 30, 30); // Smaller margins
 
             // Header Section
             addHeader(document, invoice, boldFont);
@@ -71,10 +72,10 @@ public class PdfInvoiceGenerator {
     private void addHeader(Document document, Invoice invoice, PdfFont boldFont) {
         Paragraph header = new Paragraph("INVOICE")
                 .setFont(boldFont)
-                .setFontSize(28)
+                .setFontSize(20)
                 .setFontColor(SLATE_700)
                 .setTextAlignment(TextAlignment.CENTER)
-                .setMarginBottom(20);
+                .setMarginBottom(10);
         document.add(header);
     }
 
@@ -83,27 +84,26 @@ public class PdfInvoiceGenerator {
         float[] columnWidths = {1, 1};
         Table table = new Table(UnitValue.createPercentArray(columnWidths))
                 .useAllAvailableWidth()
-                .setMarginBottom(20);
+                .setMarginBottom(8);
 
-        // Technician Info (Left)
+        // Technician Info (Left) - compact single-line format
         Cell techCell = new Cell()
                 .setBorder(null)
-                .add(new Paragraph("From:").setFont(boldFont).setFontSize(11).setFontColor(TEAL_600))
-                .add(new Paragraph(invoice.getTechnicianName()).setFont(boldFont).setFontSize(12).setFontColor(GRAY_800))
-                .add(new Paragraph(invoice.getTechnicianAddress()).setFont(regularFont).setFontSize(10).setFontColor(GRAY_800))
-                .add(new Paragraph("ABN: " + invoice.getTechnicianABN()).setFont(regularFont).setFontSize(10).setFontColor(GRAY_800))
-                .add(new Paragraph(invoice.getTechnicianEmail()).setFont(regularFont).setFontSize(10).setFontColor(GRAY_800))
-                .add(new Paragraph(invoice.getTechnicianPhone()).setFont(regularFont).setFontSize(10).setFontColor(GRAY_800));
+                .setPadding(2)
+                .add(new Paragraph("From:").setFont(boldFont).setFontSize(9).setFontColor(TEAL_600).setMarginBottom(2))
+                .add(new Paragraph(invoice.getTechnicianName()).setFont(boldFont).setFontSize(10).setFontColor(GRAY_800).setMarginBottom(1))
+                .add(new Paragraph(invoice.getTechnicianAddress() + " | ABN: " + invoice.getTechnicianABN()).setFont(regularFont).setFontSize(8).setFontColor(GRAY_800).setMarginBottom(1))
+                .add(new Paragraph(invoice.getTechnicianEmail() + " | " + invoice.getTechnicianPhone()).setFont(regularFont).setFontSize(8).setFontColor(GRAY_800));
 
-        // Bill To Info (Right)
+        // Bill To Info (Right) - compact single-line format
         Cell billToCell = new Cell()
                 .setBorder(null)
+                .setPadding(2)
                 .setTextAlignment(TextAlignment.RIGHT)
-                .add(new Paragraph("Bill To:").setFont(boldFont).setFontSize(11).setFontColor(TEAL_600))
-                .add(new Paragraph(invoice.getBillToName()).setFont(boldFont).setFontSize(12).setFontColor(GRAY_800))
-                .add(new Paragraph(invoice.getBillToAddress()).setFont(regularFont).setFontSize(10).setFontColor(GRAY_800))
-                .add(new Paragraph(invoice.getBillToEmail()).setFont(regularFont).setFontSize(10).setFontColor(GRAY_800))
-                .add(new Paragraph(invoice.getBillToPhone()).setFont(regularFont).setFontSize(10).setFontColor(GRAY_800));
+                .add(new Paragraph("Bill To:").setFont(boldFont).setFontSize(9).setFontColor(TEAL_600).setMarginBottom(2))
+                .add(new Paragraph(invoice.getBillToName()).setFont(boldFont).setFontSize(10).setFontColor(GRAY_800).setMarginBottom(1))
+                .add(new Paragraph(invoice.getBillToAddress()).setFont(regularFont).setFontSize(8).setFontColor(GRAY_800).setMarginBottom(1))
+                .add(new Paragraph(invoice.getBillToEmail() + " | " + invoice.getBillToPhone()).setFont(regularFont).setFontSize(8).setFontColor(GRAY_800));
 
         table.addCell(techCell);
         table.addCell(billToCell);
@@ -114,7 +114,7 @@ public class PdfInvoiceGenerator {
         float[] columnWidths = {1, 1, 1, 1};
         Table table = new Table(UnitValue.createPercentArray(columnWidths))
                 .useAllAvailableWidth()
-                .setMarginBottom(20);
+                .setMarginBottom(8);
 
         // Header row with modern teal background
         addDetailCell(table, "Invoice #", boldFont, TEAL_600, WHITE, true);
@@ -134,9 +134,9 @@ public class PdfInvoiceGenerator {
 
     private void addDetailCell(Table table, String text, PdfFont font, Color bgColor, Color textColor, boolean isHeader) {
         Cell cell = new Cell()
-                .add(new Paragraph(text).setFont(font).setFontSize(isHeader ? 11 : 10).setFontColor(textColor))
+                .add(new Paragraph(text).setFont(font).setFontSize(isHeader ? 9 : 8).setFontColor(textColor))
                 .setBackgroundColor(bgColor)
-                .setPadding(8)
+                .setPadding(4)
                 .setTextAlignment(TextAlignment.CENTER);
         table.addCell(cell);
     }
@@ -145,16 +145,16 @@ public class PdfInvoiceGenerator {
         // Add section title
         Paragraph workLogsTitle = new Paragraph("Work Performed")
                 .setFont(boldFont)
-                .setFontSize(14)
+                .setFontSize(11)
                 .setFontColor(SLATE_700)
-                .setMarginTop(10)
-                .setMarginBottom(10);
+                .setMarginTop(5)
+                .setMarginBottom(5);
         document.add(workLogsTitle);
 
-        float[] columnWidths = {2, 3, 5, 2};
+        float[] columnWidths = {1.5f, 2.5f, 4.5f, 1.5f};
         Table table = new Table(UnitValue.createPercentArray(columnWidths))
                 .useAllAvailableWidth()
-                .setMarginBottom(20);
+                .setMarginBottom(8);
 
         // Header row with slate background
         addWorkLogHeaderCell(table, "Date", boldFont);
@@ -184,10 +184,10 @@ public class PdfInvoiceGenerator {
             // Address
             addWorkLogCell(table, workLog.getJobAddress(), regularFont, rowColor);
 
-            // Description with time and hours
-            String description = workLog.getWorkDescription() + "\n(" +
-                    workLog.getStartTime() + " - " + workLog.getEndTime() + ") " +
-                    workLog.getHoursWorked() + " hrs";
+            // Description with time and hours on same line
+            String description = workLog.getWorkDescription() + " (" +
+                    workLog.getStartTime() + "-" + workLog.getEndTime() + ", " +
+                    workLog.getHoursWorked() + "hrs)";
             addWorkLogCell(table, description, regularFont, rowColor);
 
             // Amount
@@ -201,18 +201,18 @@ public class PdfInvoiceGenerator {
 
     private void addWorkLogHeaderCell(Table table, String text, PdfFont boldFont) {
         Cell cell = new Cell()
-                .add(new Paragraph(text).setFont(boldFont).setFontSize(11).setFontColor(WHITE))
+                .add(new Paragraph(text).setFont(boldFont).setFontSize(9).setFontColor(WHITE))
                 .setBackgroundColor(SLATE_700)
-                .setPadding(10)
+                .setPadding(4)
                 .setTextAlignment(TextAlignment.LEFT);
         table.addCell(cell);
     }
 
     private void addWorkLogCell(Table table, String text, PdfFont regularFont, Color bgColor) {
         Cell cell = new Cell()
-                .add(new Paragraph(text).setFont(regularFont).setFontSize(10).setFontColor(GRAY_800))
+                .add(new Paragraph(text).setFont(regularFont).setFontSize(8).setFontColor(GRAY_800))
                 .setBackgroundColor(bgColor)
-                .setPadding(8)
+                .setPadding(3)
                 .setTextAlignment(TextAlignment.LEFT);
         table.addCell(cell);
     }
@@ -223,8 +223,8 @@ public class PdfInvoiceGenerator {
         Table totalsTable = new Table(UnitValue.createPercentArray(totalsColumnWidths))
                 .setWidth(UnitValue.createPercentValue(50))
                 .setHorizontalAlignment(com.itextpdf.layout.property.HorizontalAlignment.RIGHT)
-                .setMarginTop(10)
-                .setMarginBottom(20);
+                .setMarginTop(5)
+                .setMarginBottom(8);
 
         // Subtotal
         addTotalRow(totalsTable, "Subtotal:", "$" + invoice.getSubtotal().toString(), regularFont, boldFont, false);
@@ -242,15 +242,15 @@ public class PdfInvoiceGenerator {
         if (invoice.getBankName() != null) {
             Paragraph bankTitle = new Paragraph("Payment Details")
                     .setFont(boldFont)
-                    .setFontSize(14)
+                    .setFontSize(11)
                     .setFontColor(SLATE_700)
-                    .setMarginTop(20)
-                    .setMarginBottom(10);
+                    .setMarginTop(5)
+                    .setMarginBottom(5);
             document.add(bankTitle);
 
             Table bankTable = new Table(UnitValue.createPercentArray(new float[]{1, 2}))
                     .setWidth(UnitValue.createPercentValue(50))
-                    .setMarginBottom(20);
+                    .setMarginBottom(5);
 
             addBankDetailRow(bankTable, "Bank:", invoice.getBankName(), regularFont, boldFont);
             addBankDetailRow(bankTable, "BSB:", invoice.getBsb(), regularFont, boldFont);
@@ -266,16 +266,16 @@ public class PdfInvoiceGenerator {
         Color textColor = isTotal ? WHITE : GRAY_800;
 
         Cell labelCell = new Cell()
-                .add(new Paragraph(label).setFont(labelFont).setFontSize(11).setFontColor(textColor))
+                .add(new Paragraph(label).setFont(labelFont).setFontSize(9).setFontColor(textColor))
                 .setBackgroundColor(bgColor)
-                .setPadding(10)
+                .setPadding(5)
                 .setTextAlignment(TextAlignment.RIGHT)
                 .setBorder(null);
 
         Cell amountCell = new Cell()
-                .add(new Paragraph(amount).setFont(amountFont).setFontSize(11).setFontColor(textColor))
+                .add(new Paragraph(amount).setFont(amountFont).setFontSize(9).setFontColor(textColor))
                 .setBackgroundColor(bgColor)
-                .setPadding(10)
+                .setPadding(5)
                 .setTextAlignment(TextAlignment.RIGHT)
                 .setBorder(null);
 
@@ -285,15 +285,15 @@ public class PdfInvoiceGenerator {
 
     private void addBankDetailRow(Table table, String label, String value, PdfFont regularFont, PdfFont boldFont) {
         Cell labelCell = new Cell()
-                .add(new Paragraph(label).setFont(boldFont).setFontSize(10).setFontColor(TEAL_600))
+                .add(new Paragraph(label).setFont(boldFont).setFontSize(8).setFontColor(TEAL_600))
                 .setBackgroundColor(GRAY_50)
-                .setPadding(8)
+                .setPadding(4)
                 .setBorder(null);
 
         Cell valueCell = new Cell()
-                .add(new Paragraph(value).setFont(regularFont).setFontSize(10).setFontColor(GRAY_800))
+                .add(new Paragraph(value).setFont(regularFont).setFontSize(8).setFontColor(GRAY_800))
                 .setBackgroundColor(WHITE)
-                .setPadding(8)
+                .setPadding(4)
                 .setBorder(null);
 
         table.addCell(labelCell);
