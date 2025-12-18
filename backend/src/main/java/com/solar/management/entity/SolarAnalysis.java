@@ -28,52 +28,50 @@ public class SolarAnalysis {
     @Column(length = 500)
     private String address;
 
-    @Column(precision = 10, scale = 8)
     private Double latitude;
 
-    @Column(precision = 11, scale = 8)
     private Double longitude;
 
     // Roof measurements
-    @Column(name = "roof_area", precision = 10, scale = 2)
+    @Column(name = "roof_area")
     private Double roofArea; // in square meters
 
-    @Column(name = "usable_area", precision = 10, scale = 2)
+    @Column(name = "usable_area")
     private Double usableArea; // in square meters
 
-    @Column(name = "roof_pitch", precision = 5, scale = 2)
+    @Column(name = "roof_pitch")
     private Double roofPitch; // in degrees
 
     @Column(name = "roof_orientation", length = 50)
     private String roofOrientation; // North, South, East, West, etc.
 
-    @Column(name = "shading_factor", precision = 3, scale = 2)
+    @Column(name = "shading_factor")
     private Double shadingFactor; // 0.0 to 1.0
 
     // Optimal configuration
-    @Column(name = "optimal_azimuth", precision = 5, scale = 2)
+    @Column(name = "optimal_azimuth")
     private Double optimalAzimuth; // 0-360 degrees
 
-    @Column(name = "optimal_tilt", precision = 5, scale = 2)
+    @Column(name = "optimal_tilt")
     private Double optimalTilt; // degrees from horizontal
 
     @Column(name = "number_of_panels")
     private Integer numberOfPanels;
 
-    @Column(name = "system_capacity", precision = 10, scale = 2)
+    @Column(name = "system_capacity")
     private Double systemCapacity; // in kW
 
     @Column(name = "panel_wattage")
     private Integer panelWattage; // watts per panel
 
     // Production estimates
-    @Column(name = "annual_production", precision = 10, scale = 2)
+    @Column(name = "annual_production")
     private Double annualProduction; // kWh per year
 
-    @Column(name = "daily_average", precision = 10, scale = 2)
+    @Column(name = "daily_average")
     private Double dailyAverage; // kWh per day
 
-    @Column(name = "peak_sun_hours", precision = 5, scale = 2)
+    @Column(name = "peak_sun_hours")
     private Double peakSunHours; // hours per day
 
     // Panel layout
@@ -83,7 +81,7 @@ public class SolarAnalysis {
     @Column(name = "layout_columns")
     private Integer layoutColumns;
 
-    @Column(name = "panel_spacing", precision = 5, scale = 2)
+    @Column(name = "panel_spacing")
     private Double panelSpacing; // meters between panels
 
     // Materials - stored separately for now
