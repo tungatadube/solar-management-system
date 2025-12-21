@@ -211,13 +211,11 @@ const Reports: React.FC = () => {
   const handleDownloadInvoice = async (invoiceId: number) => {
     try {
       const response = await invoiceApi.download(invoiceId);
-      const blob = new Blob([response.data], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      });
-      const url = window.URL.createObjectURL(blob);
+      // response.data is already a Blob from axios
+      const url = window.URL.createObjectURL(response.data);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `invoice-${invoiceId}.xlsx`;
+      link.download = `invoice-${invoiceId}.pdf`;
       link.click();
       window.URL.revokeObjectURL(url);
     } catch (error) {

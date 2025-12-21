@@ -29,7 +29,7 @@ import {
   Build,
   Schedule,
 } from '@mui/icons-material';
-import { LoadScript } from '@react-google-maps/api';
+import { useLoadScript } from '@react-google-maps/api';
 import RoofMeasurement, { RoofMeasurementData } from '../components/RoofMeasurement';
 import { solarOptimizerApi, SolarAnalysis, SolarAnalysisRequest } from '../services/api';
 
@@ -39,6 +39,11 @@ const libraries: ("drawing" | "geometry" | "places")[] = ["drawing", "geometry",
 const SolarOptimizer: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
+
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: libraries,
+  });
 
   const [showMeasurement, setShowMeasurement] = useState(true);
   const [analysis, setAnalysis] = useState<SolarAnalysis | null>(null);
@@ -113,16 +118,26 @@ const SolarOptimizer: React.FC = () => {
     }).format(value);
   };
 
+  if (loadError) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          Error loading Google Maps. Please check your API key and try again.
+        </Alert>
+      </Box>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
-    <LoadScript
-      googleMapsApiKey={GOOGLE_MAPS_API_KEY}
-      libraries={libraries}
-      loadingElement={
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-          <CircularProgress />
-        </Box>
-      }
-    >
+    <>
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
           <CircularProgress />
@@ -151,7 +166,7 @@ const SolarOptimizer: React.FC = () => {
       ) : (
         renderAnalysisResults(analysis, handleRecalculate, handleSaveToJob, jobId)
       )}
-    </LoadScript>
+    </>
   );
 
   function renderAnalysisResults(
