@@ -9,7 +9,6 @@ import {
   Chip,
   FormControl,
   Grid,
-  IconButton,
   InputLabel,
   MenuItem,
   Paper,
@@ -22,7 +21,6 @@ import {
   CalendarToday as CalendarIcon,
   FilterAlt as FilterIcon,
   ClearAll as ClearIcon,
-  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { workLogApi, userApi } from '../services/api';
@@ -85,31 +83,6 @@ const WorkLogs: React.FC = () => {
     setStartDate('');
     setEndDate('');
     loadWorkLogs();
-  };
-
-  const handleDelete = async (id: number, workLog: WorkLog) => {
-    // Build confirmation message
-    let confirmMessage = `Are you sure you want to delete this work log?\n\nDate: ${workLog.workDate}\nAddress: ${workLog.jobAddress}\nHours: ${workLog.hoursWorked.toFixed(2)}\nAmount: $${workLog.totalAmount.toFixed(2)}`;
-
-    // Warn if invoiced
-    if (workLog.invoiced) {
-      confirmMessage += '\n\n⚠️ WARNING: This work log has been INVOICED!\nDeleting it will remove it from the invoice and recalculate the invoice totals.';
-    }
-
-    // Show confirmation dialog
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
-    try {
-      await workLogApi.delete(id);
-      // Reload work logs after successful deletion
-      await loadWorkLogs();
-      alert('Work log deleted successfully' + (workLog.invoiced ? '. The associated invoice has been updated.' : '.'));
-    } catch (error: any) {
-      alert('Failed to delete work log: ' + (error.response?.data?.message || error.message || 'Unknown error'));
-      console.error('Failed to delete work log:', error);
-    }
   };
 
   const workLogColumns: GridColDef[] = [
@@ -180,22 +153,6 @@ const WorkLogs: React.FC = () => {
           color={params.value ? 'success' : 'warning'}
           size="small"
         />
-      ),
-    },
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 80,
-      sortable: false,
-      renderCell: (params) => (
-        <IconButton
-          size="small"
-          color="error"
-          onClick={() => handleDelete(params.row.id, params.row)}
-          title={params.row.invoiced ? 'Delete work log (will update invoice)' : 'Delete work log'}
-        >
-          <DeleteIcon />
-        </IconButton>
       ),
     },
   ];

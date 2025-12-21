@@ -145,26 +145,12 @@ const JobEdit: React.FC = () => {
       status: newStatus,
     }));
 
-    // If changing to COMPLETED, call the updateStatus API which will create work logs
-    if (newStatus === JobStatus.COMPLETED && oldStatus !== JobStatus.COMPLETED) {
+    // Call the API to update status
+    if (newStatus !== oldStatus) {
       try {
         await jobApi.updateStatus(Number(id), newStatus);
         setSuccess(true);
         setError(null);
-        // Show success message
-        alert('Job marked as COMPLETED! Work logs have been automatically created for all assigned technicians.');
-      } catch (err: any) {
-        setError('Failed to update job status: ' + (err.response?.data?.message || err.message));
-        // Revert status on error
-        setFormData(prev => ({
-          ...prev,
-          status: oldStatus,
-        }));
-      }
-    } else if (newStatus !== oldStatus) {
-      // For other status changes, also call the API
-      try {
-        await jobApi.updateStatus(Number(id), newStatus);
       } catch (err: any) {
         setError('Failed to update job status: ' + (err.response?.data?.message || err.message));
         // Revert status on error
@@ -297,9 +283,13 @@ const JobEdit: React.FC = () => {
 
         {success && (
           <Alert severity="success" sx={{ mb: 3 }}>
-            Job updated successfully! Redirecting...
+            Job updated successfully! All uninvoiced work logs have been updated automatically. Redirecting...
           </Alert>
         )}
+
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <strong>Work Log Auto-Update:</strong> Changes to job details (times, location, description, type) will automatically cascade to all uninvoiced work logs. Invoiced work logs remain protected.
+        </Alert>
 
         <Paper sx={{ p: 3 }}>
           <form onSubmit={handleSubmit}>
@@ -468,7 +458,7 @@ const JobEdit: React.FC = () => {
                     textField: {
                       fullWidth: true,
                       required: true,
-                      helperText: "Required - Job start time for work log calculation",
+                      helperText: "Updates work logs automatically",
                     },
                   }}
                 />
@@ -484,7 +474,7 @@ const JobEdit: React.FC = () => {
                     textField: {
                       fullWidth: true,
                       required: true,
-                      helperText: "Required - Job end time for work log calculation",
+                      helperText: "Updates work logs automatically",
                     },
                   }}
                 />

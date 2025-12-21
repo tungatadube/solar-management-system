@@ -40,14 +40,49 @@ public class JobService {
         String jobNumber = generateJobNumber();
         job.setJobNumber(jobNumber);
         job.setStatus(Job.JobStatus.SCHEDULED);
-        
+
         log.info("Creating new job with number: {}", jobNumber);
-        return jobRepository.save(job);
+        Job savedJob = jobRepository.save(job);
+
+        // Automatically create work logs for all assigned technicians
+        if (savedJob.getStartTime() != null && savedJob.getEndTime() != null &&
+            savedJob.getAssignedTechnicians() != null && !savedJob.getAssignedTechnicians().isEmpty()) {
+            createWorkLogsForJob(savedJob);
+            log.info("Created work logs for new job {}", jobNumber);
+        } else {
+            log.warn("Job {} created without work logs (missing times or technicians)", jobNumber);
+        }
+
+        return savedJob;
     }
     
     public Job updateJob(Long id, Job jobDetails) {
         Job job = getJobById(id);
 
+        // Track what changed for cascade updates
+        boolean timesChanged = false;
+        boolean locationChanged = false;
+        boolean descriptionChanged = false;
+        boolean typeChanged = false;
+
+        if (jobDetails.getStartTime() != null && !jobDetails.getStartTime().equals(job.getStartTime())) {
+            timesChanged = true;
+        }
+        if (jobDetails.getEndTime() != null && !jobDetails.getEndTime().equals(job.getEndTime())) {
+            timesChanged = true;
+        }
+        if (jobDetails.getLocation() != null &&
+            (job.getLocation() == null || !job.getLocation().getId().equals(jobDetails.getLocation().getId()))) {
+            locationChanged = true;
+        }
+        if (jobDetails.getDescription() != null && !jobDetails.getDescription().equals(job.getDescription())) {
+            descriptionChanged = true;
+        }
+        if (jobDetails.getType() != null && !jobDetails.getType().equals(job.getType())) {
+            typeChanged = true;
+        }
+
+        // Update job fields
         job.setClientName(jobDetails.getClientName());
         job.setClientPhone(jobDetails.getClientPhone());
         job.setClientEmail(jobDetails.getClientEmail());
@@ -69,12 +104,62 @@ public class JobService {
             job.setAssignedTechnicians(jobDetails.getAssignedTechnicians());
         }
 
-        log.info("Updated job {}: location_id={}, technicians={}",
-                 job.getJobNumber(),
-                 job.getLocation() != null ? job.getLocation().getId() : "null",
-                 job.getAssignedTechnicians().size());
+        // Save job first
+        Job savedJob = jobRepository.save(job);
 
-        return jobRepository.save(job);
+        // Cascade changes to work logs (only for uninvoiced work logs)
+        List<WorkLog> relatedWorkLogs = workLogRepository.findByJob(job);
+        if (!relatedWorkLogs.isEmpty()) {
+            int updatedCount = 0;
+            for (WorkLog workLog : relatedWorkLogs) {
+                // Skip invoiced work logs - they should not be modified
+                if (workLog.getInvoiced()) {
+                    continue;
+                }
+
+                boolean workLogUpdated = false;
+
+                if (timesChanged && savedJob.getStartTime() != null && savedJob.getEndTime() != null) {
+                    workLog.setStartTime(savedJob.getStartTime().toLocalTime());
+                    workLog.setEndTime(savedJob.getEndTime().toLocalTime());
+                    workLog.setWorkDate(savedJob.getStartTime().toLocalDate());
+                    workLogUpdated = true;
+                }
+
+                if (locationChanged && savedJob.getLocation() != null) {
+                    workLog.setJobAddress(savedJob.getLocation().getAddress());
+                    workLogUpdated = true;
+                }
+
+                if (descriptionChanged && savedJob.getDescription() != null) {
+                    workLog.setWorkDescription(savedJob.getDescription());
+                    workLogUpdated = true;
+                }
+
+                if (typeChanged && savedJob.getType() != null) {
+                    workLog.setWorkType(determineWorkType(savedJob.getType()));
+                    workLogUpdated = true;
+                }
+
+                if (workLogUpdated) {
+                    workLog.calculateTotals(); // Recalculate hours and amounts
+                    workLogRepository.save(workLog);
+                    updatedCount++;
+                }
+            }
+
+            if (updatedCount > 0) {
+                log.info("Cascaded job updates to {} uninvoiced work log(s) for job {}",
+                         updatedCount, job.getJobNumber());
+            }
+        }
+
+        log.info("Updated job {}: location_id={}, technicians={}",
+                 savedJob.getJobNumber(),
+                 savedJob.getLocation() != null ? savedJob.getLocation().getId() : "null",
+                 savedJob.getAssignedTechnicians().size());
+
+        return savedJob;
     }
     
     public Job updateJobStatus(Long id, Job.JobStatus newStatus) {
@@ -82,26 +167,6 @@ public class JobService {
         Job.JobStatus oldStatus = job.getStatus();
 
         job.setStatus(newStatus);
-
-        // Create work logs when job is marked as COMPLETED
-        if (newStatus == Job.JobStatus.COMPLETED) {
-            // Check for existing work logs and delete them before creating new ones
-            List<WorkLog> existingWorkLogs = workLogRepository.findByJob(job);
-            if (!existingWorkLogs.isEmpty()) {
-                log.warn("Job {} already has {} work log(s). Deleting existing work logs before regenerating.",
-                        job.getJobNumber(), existingWorkLogs.size());
-                workLogRepository.deleteAll(existingWorkLogs);
-                log.info("Deleted {} existing work log(s) for job {}", existingWorkLogs.size(), job.getJobNumber());
-            }
-
-            // Automatically create work logs for all assigned technicians
-            if (job.getStartTime() != null && job.getEndTime() != null) {
-                createWorkLogsForJob(job);
-            } else {
-                log.warn("Job {} marked as COMPLETED but missing start/end times. Work logs not created.",
-                        job.getJobNumber());
-            }
-        }
 
         log.info("Job {} status changed from {} to {}", job.getJobNumber(), oldStatus, newStatus);
         return jobRepository.save(job);

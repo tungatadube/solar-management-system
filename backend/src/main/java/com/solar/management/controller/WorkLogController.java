@@ -27,12 +27,13 @@ public class WorkLogController {
     
     /**
      * Create a new work log
+     * DISABLED: Work logs are automatically created when a Job is marked as COMPLETED.
+     * To create work logs, update the job status through the Job API.
      */
     @PostMapping
-    public ResponseEntity<WorkLog> createWorkLog(@RequestBody WorkLog workLog) {
-        workLog.calculateTotals(); // Ensure calculations are done
-        WorkLog saved = workLogRepository.save(workLog);
-        return new ResponseEntity<>(saved, HttpStatus.CREATED);
+    public ResponseEntity<?> createWorkLog(@RequestBody WorkLog workLog) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body("Work logs cannot be created directly. They are automatically generated when a Job is marked as COMPLETED.");
     }
     
     /**
@@ -105,44 +106,43 @@ public class WorkLogController {
     
     /**
      * Update work log
+     * NOTE: Can only update work details (description, type).
+     * Job relationship, dates, and times are managed through the Job entity.
      */
     @PutMapping("/{id}")
-    public ResponseEntity<WorkLog> updateWorkLog(@PathVariable Long id, @RequestBody WorkLog workLogDetails) {
+    public ResponseEntity<?> updateWorkLog(@PathVariable Long id, @RequestBody WorkLog workLogDetails) {
         WorkLog workLog = workLogRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Work log not found"));
-        
-        if (workLogDetails.getWorkDate() != null) workLog.setWorkDate(workLogDetails.getWorkDate());
-        if (workLogDetails.getStartTime() != null) workLog.setStartTime(workLogDetails.getStartTime());
-        if (workLogDetails.getEndTime() != null) workLog.setEndTime(workLogDetails.getEndTime());
-        if (workLogDetails.getHourlyRate() != null) workLog.setHourlyRate(workLogDetails.getHourlyRate());
-        if (workLogDetails.getWorkDescription() != null) workLog.setWorkDescription(workLogDetails.getWorkDescription());
-        if (workLogDetails.getJobAddress() != null) workLog.setJobAddress(workLogDetails.getJobAddress());
-        if (workLogDetails.getWorkType() != null) workLog.setWorkType(workLogDetails.getWorkType());
-        
-        workLog.calculateTotals();
-        
+
+        // Prevent updating if already invoiced
+        if (workLog.getInvoiced()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Cannot update work log that has already been invoiced.");
+        }
+
+        // Only allow updating description and work type (not job relationship, dates, or times)
+        if (workLogDetails.getWorkDescription() != null) {
+            workLog.setWorkDescription(workLogDetails.getWorkDescription());
+        }
+        if (workLogDetails.getWorkType() != null) {
+            workLog.setWorkType(workLogDetails.getWorkType());
+        }
+
+        // Job, user, dates, times, hourlyRate, and jobAddress are managed through Job entity
+        // and should not be updated directly
+
         WorkLog updated = workLogRepository.save(workLog);
         return ResponseEntity.ok(updated);
     }
     
     /**
      * Delete work log
-     * If the work log is invoiced, it will be removed from the invoice and the invoice totals will be recalculated
+     * DISABLED: Work logs can only be deleted through the parent Job.
+     * Deleting a Job will cascade delete all related work logs.
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteWorkLog(@PathVariable Long id) {
-        WorkLog workLog = workLogRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Work log not found"));
-
-        // If invoiced, remove from invoice and recalculate invoice totals
-        if (workLog.getInvoiced() && workLog.getInvoice() != null) {
-            var invoice = workLog.getInvoice();
-            invoice.getWorkLogs().remove(workLog);
-            invoice.calculateTotals();
-            invoiceRepository.save(invoice);
-        }
-
-        workLogRepository.delete(workLog);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> deleteWorkLog(@PathVariable Long id) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body("Work logs cannot be deleted directly. Delete the parent Job to remove all associated work logs.");
     }
 }

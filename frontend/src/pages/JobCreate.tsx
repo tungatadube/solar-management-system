@@ -212,9 +212,13 @@ const JobCreate: React.FC = () => {
 
         {success && (
           <Alert severity="success" sx={{ mb: 3 }}>
-            Job created successfully! Redirecting...
+            Job created successfully! Work logs have been automatically created for all assigned technicians. Redirecting...
           </Alert>
         )}
+
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <strong>Work Log Auto-Creation:</strong> When you create this job, work logs will be automatically generated for each assigned technician based on the start and end times you specify.
+        </Alert>
 
         <Paper sx={{ p: 3 }}>
           <form onSubmit={handleSubmit}>
@@ -363,7 +367,7 @@ const JobCreate: React.FC = () => {
                     textField: {
                       fullWidth: true,
                       required: true,
-                      helperText: "Required - Job start time",
+                      helperText: "Work logs will be created automatically",
                     },
                   }}
                 />
@@ -378,7 +382,7 @@ const JobCreate: React.FC = () => {
                     textField: {
                       fullWidth: true,
                       required: true,
-                      helperText: "Required - Job end time",
+                      helperText: "Work logs will be created automatically",
                     },
                   }}
                 />

@@ -34,7 +34,9 @@ public class WorkLog {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "job_id", nullable = false)
+    @JoinColumn(name = "job_id", nullable = false,
+                foreignKey = @ForeignKey(name = "fk_worklog_job",
+                                        foreignKeyDefinition = "FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE ON UPDATE CASCADE"))
     @JsonIgnore
     private Job job;
     
