@@ -232,6 +232,11 @@ const RoofMeasurement: React.FC<RoofMeasurementProps> = ({
                   editable: true,
                   zIndex: 1,
                 },
+                polylineOptions: {
+                  strokeWeight: 2,
+                  strokeColor: '#FF0000',
+                  strokeOpacity: 1.0,
+                },
               }}
             />
           </GoogleMap>
