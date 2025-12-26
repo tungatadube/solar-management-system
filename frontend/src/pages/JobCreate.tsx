@@ -1,7 +1,7 @@
 // frontend/src/pages/JobCreate.tsx
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -32,6 +32,7 @@ const libraries: ("places" | "drawing" | "geometry")[] = ["places"];
 
 const JobCreate: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -90,6 +91,14 @@ const JobCreate: React.FC = () => {
     };
     fetchData();
   }, []);
+
+  // Check for pre-filled location data from router state (from stationary tracking prompt)
+  useEffect(() => {
+    const state = location.state as { locationData?: typeof locationData } | null;
+    if (state?.locationData) {
+      setLocationData(state.locationData);
+    }
+  }, [location]);
 
   const handleChange = (field: string) => (event: any) => {
     setFormData(prev => ({
