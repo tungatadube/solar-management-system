@@ -1,0 +1,73 @@
+services:
+  # React Frontend (Staging)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
+    container_name: solar-frontend-staging
+    environment:
+      REACT_APP_API_URL: http://${EC2_PUBLIC_IP}:8081/api
+      REACT_APP_KEYCLOAK_URL: http://${EC2_PUBLIC_IP}:8181
+      TZ: Australia/Adelaide
+    ports:
+      - "3001:80"  # Staging on alternate port
+    restart: unless-stopped
+    networks:
+      - solar-staging
+
+  # Spring Boot Backend (Staging)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: solar-backend-staging
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${RDS_ENDPOINT}:5432/solar_management_staging
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      KEYCLOAK_AUTH_SERVER_URL: http://${EC2_PUBLIC_IP}:8181
+      KEYCLOAK_REALM: solar-management
+      KEYCLOAK_RESOURCE: solar-backend
+      AWS_S3_BUCKET: solar-management-prod-uploads
+      AWS_REGION: ap-southeast-2
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
+      CORS_ORIGINS: http://${EC2_PUBLIC_IP}:3001
+      TZ: Australia/Adelaide
+    ports:
+      - "8081:8080"
+    restart: unless-stopped
+    networks:
+      - solar-staging
+
+  # Keycloak Authentication Server (Staging)
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: solar-keycloak-staging
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://${RDS_ENDPOINT}:5432/keycloak_staging
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: ${DB_PASSWORD}
+      KC_HOSTNAME: ${EC2_PUBLIC_IP}
+      KC_HOSTNAME_PORT: 8181
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HTTP_ENABLED: true
+      KC_HEALTH_ENABLED: true
+      TZ: Australia/Adelaide
+    command: start --optimized --import-realm
+    ports:
+      - "8181:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+    restart: unless-stopped
+    networks:
+      - solar-staging
+
+networks:
+  solar-staging:
+    driver: bridge

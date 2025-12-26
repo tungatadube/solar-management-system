@@ -76,3 +76,87 @@ logging:
   level:
     com.solar.management: DEBUG
     org.springframework.security: DEBUG
+
+---
+# Production Profile (AWS Deployment)
+spring:
+  config:
+    activate:
+      on-profile: production
+
+  datasource:
+    url: jdbc:postgresql://${RDS_ENDPOINT}:5432/solar_management_prod
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://${EC2_PUBLIC_IP}:8180/realms/${KEYCLOAK_REALM:solar-management}
+          jwk-set-uri: http://${EC2_PUBLIC_IP}:8180/realms/${KEYCLOAK_REALM:solar-management}/protocol/openid-connect/certs
+
+keycloak:
+  auth-server-url: http://${EC2_PUBLIC_IP}:8180
+
+aws:
+  s3:
+    bucket-name: solar-management-prod-uploads
+    region: ap-southeast-2
+
+app:
+  cors:
+    allowed-origins: http://${EC2_PUBLIC_IP}
+
+logging:
+  level:
+    com.solar.management: INFO
+    org.springframework.security: INFO
+
+---
+# Staging Profile (AWS Deployment)
+spring:
+  config:
+    activate:
+      on-profile: staging
+
+  datasource:
+    url: jdbc:postgresql://${RDS_ENDPOINT}:5432/solar_management_staging
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://${EC2_PUBLIC_IP}:8181/realms/${KEYCLOAK_REALM:solar-management}
+          jwk-set-uri: http://${EC2_PUBLIC_IP}:8181/realms/${KEYCLOAK_REALM:solar-management}/protocol/openid-connect/certs
+
+keycloak:
+  auth-server-url: http://${EC2_PUBLIC_IP}:8181
+
+aws:
+  s3:
+    bucket-name: solar-management-prod-uploads
+    region: ap-southeast-2
+
+app:
+  cors:
+    allowed-origins: http://${EC2_PUBLIC_IP}:3001
+
+logging:
+  level:
+    com.solar.management: DEBUG
+    org.springframework.security: DEBUG

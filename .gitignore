@@ -11,6 +11,8 @@ backend/target/
 .env
 .env.local
 .env.*.local
+.env.prod
+.env.staging
 
 # IDE files
 .idea/
@@ -46,3 +48,7 @@ pgdata/
 # Temporary files
 *.tmp
 *.temp
+
+# AWS deployment files
+*.pem
+solar-management-key.pem
