@@ -18,6 +18,11 @@ import { MyLocation as MyLocationIcon, Refresh as RefreshIcon } from '@mui/icons
 import { locationTrackingApi, userApi } from '../services/api';
 import { LocationTracking, User } from '../types';
 import GoogleMapDisplay from '../components/GoogleMapDisplay';
+import { useLoadScript } from '@react-google-maps/api';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+
+const libraries: ("places" | "drawing" | "geometry")[] = ["places"];
 
 const LocationTrackingPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -26,6 +31,11 @@ const LocationTrackingPage: React.FC = () => {
   const [locationHistory, setLocationHistory] = useState<LocationTracking[]>([]);
   const [loading, setLoading] = useState(false);
   const [trackingActive, setTrackingActive] = useState(false);
+
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '',
+    libraries,
+  });
 
   useEffect(() => {
     loadUsers();
@@ -147,6 +157,24 @@ const LocationTrackingPage: React.FC = () => {
   const mapCenter = currentLocation
     ? { lat: currentLocation.latitude, lng: currentLocation.longitude }
     : { lat: -34.9285, lng: 138.6007 }; // Adelaide default
+
+  if (loadError) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          Error loading Google Maps. Please check your API key and try again.
+        </Alert>
+      </Box>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box p={3}>

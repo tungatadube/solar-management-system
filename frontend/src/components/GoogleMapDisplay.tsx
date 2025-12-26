@@ -1,8 +1,5 @@
 import React from 'react';
-import { GoogleMap, Marker, Polyline, InfoWindow, useLoadScript } from '@react-google-maps/api';
-import { Box, CircularProgress } from '@mui/material';
-
-const libraries: ("places")[] = ["places"];
+import { GoogleMap, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
 
 interface MapMarker {
   id: string | number;
@@ -43,29 +40,12 @@ const GoogleMapDisplay: React.FC<GoogleMapDisplayProps> = ({
 }) => {
   const [selectedMarkerId, setSelectedMarkerId] = React.useState<string | number | null>(null);
 
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '',
-    libraries,
-  });
-
   const handleMarkerClick = (markerId: string | number) => {
     setSelectedMarkerId(markerId);
     if (onMarkerClick) {
       onMarkerClick(markerId);
     }
   };
-
-  if (loadError) {
-    return <Box color="error.main">Error loading Google Maps</Box>;
-  }
-
-  if (!isLoaded) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" height={height}>
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
     <GoogleMap

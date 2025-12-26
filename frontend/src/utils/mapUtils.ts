@@ -70,3 +70,93 @@ export function formatCoordinates(lat: number, lng: number): string {
 
   return `${Math.abs(lat).toFixed(6)}° ${latDir}, ${Math.abs(lng).toFixed(6)}° ${lngDir}`;
 }
+
+/**
+ * Convert degrees to radians
+ */
+function toRadians(degrees: number): number {
+  return (degrees * Math.PI) / 180;
+}
+
+/**
+ * Convert radians to degrees
+ */
+function toDegrees(radians: number): number {
+  return (radians * 180) / Math.PI;
+}
+
+/**
+ * Calculate bearing between two points (0-360 degrees, 0=North)
+ * @param lat1 Latitude of first point
+ * @param lng1 Longitude of first point
+ * @param lat2 Latitude of second point
+ * @param lng2 Longitude of second point
+ * @returns Bearing in degrees (0-360)
+ */
+export function calculateBearing(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const dLon = toRadians(lng2 - lng1);
+  const y = Math.sin(dLon) * Math.cos(toRadians(lat2));
+  const x =
+    Math.cos(toRadians(lat1)) * Math.sin(toRadians(lat2)) -
+    Math.sin(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.cos(dLon);
+  const bearing = toDegrees(Math.atan2(y, x));
+  return (bearing + 360) % 360; // Normalize to 0-360
+}
+
+/**
+ * Convert bearing to compass label (N, NE, E, SE, S, SW, W, NW)
+ * @param bearing Bearing in degrees (0-360)
+ * @returns Compass label
+ */
+function getCompassLabel(bearing: number): string {
+  const labels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  const index = Math.round(bearing / 45) % 8;
+  return labels[index];
+}
+
+export interface EdgeLabel {
+  position: { lat: number; lng: number };
+  bearing: number;
+  label: string;
+}
+
+/**
+ * Calculate compass labels for each edge of a polygon
+ * @param polygon Array of coordinates defining the polygon
+ * @returns Array of edge labels with position and compass direction
+ */
+export function calculateEdgeCompassLabels(
+  polygon: Array<{ lat: number; lng: number }>
+): EdgeLabel[] {
+  if (polygon.length < 3) {
+    return [];
+  }
+
+  const labels: EdgeLabel[] = [];
+
+  for (let i = 0; i < polygon.length; i++) {
+    const p1 = polygon[i];
+    const p2 = polygon[(i + 1) % polygon.length];
+
+    // Calculate midpoint
+    const midpoint = {
+      lat: (p1.lat + p2.lat) / 2,
+      lng: (p1.lng + p2.lng) / 2,
+    };
+
+    // Calculate bearing from p1 to p2
+    const bearing = calculateBearing(p1.lat, p1.lng, p2.lat, p2.lng);
+
+    // Convert bearing to compass label
+    const label = getCompassLabel(bearing);
+
+    labels.push({ position: midpoint, bearing, label });
+  }
+
+  return labels;
+}

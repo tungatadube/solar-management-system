@@ -31,6 +31,7 @@ import {
 } from '@mui/icons-material';
 import { useLoadScript } from '@react-google-maps/api';
 import RoofMeasurement, { RoofMeasurementData } from '../components/RoofMeasurement';
+import RailCutDisplay, { RailCut } from '../components/RailCutDisplay';
 import { solarOptimizerApi, SolarAnalysis, SolarAnalysisRequest } from '../services/api';
 
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '';
@@ -265,10 +266,10 @@ const SolarOptimizer: React.FC = () => {
                 </Typography>
               </Box>
               <Typography variant="h4">
-                {materials ? formatCurrency(materials.totalCost) : 'N/A'}
+                {materials ? formatCurrency(materials.totalCost ?? 0) : 'N/A'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {materials ? `${formatCurrency(materials.totalCost / analysis.systemCapacity)}/kW` : ''}
+                {materials ? `${formatCurrency((materials.totalCost ?? 0) / analysis.systemCapacity)}/kW` : ''}
               </Typography>
             </CardContent>
           </Card>
@@ -373,6 +374,27 @@ const SolarOptimizer: React.FC = () => {
           </Paper>
         </Grid>
 
+        {/* Rail Cutting Plan */}
+        {materials && materials.railCutPlan && (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Rail Cutting Plan
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Optimized cutting plan showing exact rail lengths needed from 4m and 6m stock rails
+              </Typography>
+              <RailCutDisplay
+                cuts={JSON.parse(materials.railCutPlan) as RailCut[]}
+                rails4m={materials.rails4m || 0}
+                rails6m={materials.rails6m || 0}
+                wastage={materials.railWastage || 0}
+              />
+            </Paper>
+          </Grid>
+        )}
+
         {/* Materials Required */}
         {materials && (
           <Grid item xs={12}>
@@ -400,7 +422,7 @@ const SolarOptimizer: React.FC = () => {
                         {materials.panelType || 'Standard Solar Panel'} ({materials.panelDimensions || 'N/A'})
                       </TableCell>
                       <TableCell align="right">{materials.panelQuantity}</TableCell>
-                      <TableCell align="right">{formatCurrency(materials.panelCost)}</TableCell>
+                      <TableCell align="right">{formatCurrency(materials.panelCost ?? 0)}</TableCell>
                     </TableRow>
 
                     {/* Inverter */}
@@ -410,7 +432,7 @@ const SolarOptimizer: React.FC = () => {
                         {materials.inverterModel || materials.inverterType} ({materials.inverterCapacity?.toFixed(1)} kW)
                       </TableCell>
                       <TableCell align="right">{materials.inverterQuantity}</TableCell>
-                      <TableCell align="right">{formatCurrency(materials.inverterCost)}</TableCell>
+                      <TableCell align="right">{formatCurrency(materials.inverterCost ?? 0)}</TableCell>
                     </TableRow>
 
                     {/* Mounting Hardware */}
@@ -419,7 +441,7 @@ const SolarOptimizer: React.FC = () => {
                       <TableCell>Aluminum rails</TableCell>
                       <TableCell align="right">{materials.railsQuantity} m</TableCell>
                       <TableCell align="right" rowSpan={4}>
-                        {formatCurrency(materials.mountingCost)}
+                        {formatCurrency(materials.mountingCost ?? 0)}
                       </TableCell>
                     </TableRow>
                     <TableRow>
@@ -444,7 +466,7 @@ const SolarOptimizer: React.FC = () => {
                       <TableCell>Solar DC cable</TableCell>
                       <TableCell align="right">{materials.dcCableLength?.toFixed(1)} m</TableCell>
                       <TableCell align="right" rowSpan={6}>
-                        {formatCurrency(materials.electricalCost)}
+                        {formatCurrency(materials.electricalCost ?? 0)}
                       </TableCell>
                     </TableRow>
                     <TableRow>
@@ -471,7 +493,7 @@ const SolarOptimizer: React.FC = () => {
                       <TableCell>Additional Components</TableCell>
                       <TableCell>Junction boxes, surge protectors, earthing kit</TableCell>
                       <TableCell align="right">
-                        {materials.junctionBoxes + materials.surgeProtectors + materials.earthingKit}
+                        {(materials.junctionBoxes ?? 0) + (materials.surgeProtectors ?? 0) + (materials.earthingKit ?? 0)}
                       </TableCell>
                     </TableRow>
 
@@ -482,7 +504,7 @@ const SolarOptimizer: React.FC = () => {
                         {materials.installationType} installation (~{materials.estimatedInstallDays} days)
                       </TableCell>
                       <TableCell align="right">-</TableCell>
-                      <TableCell align="right">{formatCurrency(materials.laborCost)}</TableCell>
+                      <TableCell align="right">{formatCurrency(materials.laborCost ?? 0)}</TableCell>
                     </TableRow>
 
                     {/* Total */}
@@ -491,7 +513,7 @@ const SolarOptimizer: React.FC = () => {
                         <Typography variant="h6">Total Estimated Cost</Typography>
                       </TableCell>
                       <TableCell align="right">
-                        <Typography variant="h6">{formatCurrency(materials.totalCost)}</Typography>
+                        <Typography variant="h6">{formatCurrency(materials.totalCost ?? 0)}</Typography>
                       </TableCell>
                     </TableRow>
                   </TableBody>

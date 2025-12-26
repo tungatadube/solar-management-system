@@ -22,10 +22,15 @@ import {
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { jobApi, locationApi, userApi } from '../services/api';
+import { jobApi, locationApi, userApi, solarOptimizerApi, SolarAnalysis } from '../services/api';
 import { JobType, JobStatus, User, UserRole, Job } from '../types';
 import GoogleMapsAutocomplete from '../components/GoogleMapsAutocomplete';
+import RoofVisualizationMap from '../components/RoofVisualizationMap';
+import RailCutDisplay, { RailCut } from '../components/RailCutDisplay';
 import { formatDateToLocalISO } from '../utils/dateUtils';
+import { useLoadScript } from '@react-google-maps/api';
+
+const libraries: ("places" | "drawing" | "geometry")[] = ["places"];
 
 const JobEdit: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +39,11 @@ const JobEdit: React.FC = () => {
   const [loadingJob, setLoadingJob] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '',
+    libraries,
+  });
 
   // Form state
   const [formData, setFormData] = useState({
@@ -69,6 +79,10 @@ const JobEdit: React.FC = () => {
 
   // Data for dropdowns
   const [users, setUsers] = useState<User[]>([]);
+
+  // Solar analysis state
+  const [solarAnalysis, setSolarAnalysis] = useState<SolarAnalysis | null>(null);
+  const [showRoofVisualization, setShowRoofVisualization] = useState(false);
 
   // Load job data
   useEffect(() => {
@@ -119,6 +133,25 @@ const JobEdit: React.FC = () => {
       }
     };
     fetchJob();
+  }, [id]);
+
+  // Load solar analysis if exists
+  useEffect(() => {
+    const loadSolarAnalysis = async () => {
+      if (!id) return;
+
+      try {
+        const response = await solarOptimizerApi.getByJobId(Number(id));
+        if (response.data) {
+          setSolarAnalysis(response.data);
+        }
+      } catch (err) {
+        // No solar analysis found for this job - this is okay
+        console.log('No solar analysis found for job', id);
+      }
+    };
+
+    loadSolarAnalysis();
   }, [id]);
 
   const handleChange = (field: string) => (event: any) => {
@@ -260,7 +293,17 @@ const JobEdit: React.FC = () => {
     }
   };
 
-  if (loadingJob) {
+  if (loadError) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          Error loading Google Maps. Please check your API key and try again.
+        </Alert>
+      </Box>
+    );
+  }
+
+  if (!isLoaded || loadingJob) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
         <CircularProgress />
@@ -539,6 +582,86 @@ const JobEdit: React.FC = () => {
                   </Box>
                 </Box>
               </Grid>
+
+              {/* Solar System Visualization */}
+              {solarAnalysis && locationData && (
+                <Grid item xs={12}>
+                  <Paper sx={{ p: 3, mt: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="h6">Solar System Configuration</Typography>
+                      <Button
+                        variant={showRoofVisualization ? 'contained' : 'outlined'}
+                        onClick={() => setShowRoofVisualization(!showRoofVisualization)}
+                      >
+                        {showRoofVisualization ? 'Hide' : 'Show'} Roof Layout
+                      </Button>
+                    </Box>
+
+                    {/* Summary cards */}
+                    <Grid container spacing={2} sx={{ mb: 2 }}>
+                      <Grid item xs={12} md={3}>
+                        <Typography variant="body2" color="text.secondary">System Size</Typography>
+                        <Typography variant="h6">{solarAnalysis.systemCapacity.toFixed(2)} kW</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <Typography variant="body2" color="text.secondary">Panels</Typography>
+                        <Typography variant="h6">{solarAnalysis.numberOfPanels}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <Typography variant="body2" color="text.secondary">Layout</Typography>
+                        <Typography variant="h6">
+                          {solarAnalysis.layoutRows} × {solarAnalysis.layoutColumns}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <Typography variant="body2" color="text.secondary">Orientation</Typography>
+                        <Typography variant="h6">{solarAnalysis.roofOrientation}</Typography>
+                      </Grid>
+                    </Grid>
+
+                    {showRoofVisualization && (
+                      <Box sx={{ mt: 3 }}>
+                        {solarAnalysis.roofPolygonCoordinates ? (
+                          <>
+                            <RoofVisualizationMap
+                              center={{ lat: locationData.latitude, lng: locationData.longitude }}
+                              roofPolygon={JSON.parse(solarAnalysis.roofPolygonCoordinates)}
+                              panelLayout={{
+                                rows: solarAnalysis.layoutRows,
+                                columns: solarAnalysis.layoutColumns,
+                                spacing: solarAnalysis.panelSpacing,
+                                azimuth: solarAnalysis.optimalAzimuth,
+                              }}
+                              showCompassLabels={true}
+                              showPanels={true}
+                              height="600px"
+                            />
+
+                            {/* Rail Cuts Section */}
+                            {solarAnalysis.materials?.railCutPlan && (
+                              <Box sx={{ mt: 3 }}>
+                                <Typography variant="h6" gutterBottom>
+                                  Rail Cutting Plan
+                                </Typography>
+                                <RailCutDisplay
+                                  cuts={JSON.parse(solarAnalysis.materials.railCutPlan)}
+                                  rails4m={solarAnalysis.materials.rails4m || 0}
+                                  rails6m={solarAnalysis.materials.rails6m || 0}
+                                  wastage={solarAnalysis.materials.railWastage || 0}
+                                />
+                              </Box>
+                            )}
+                          </>
+                        ) : (
+                          <Alert severity="info">
+                            Roof visualization not available. Polygon data was not saved during analysis.
+                          </Alert>
+                        )}
+                      </Box>
+                    )}
+                  </Paper>
+                </Grid>
+              )}
             </Grid>
           </form>
         </Paper>

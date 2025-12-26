@@ -44,6 +44,14 @@ public class JobService {
         log.info("Creating new job with number: {}", jobNumber);
         Job savedJob = jobRepository.save(job);
 
+        // Reload the job to ensure location is fully loaded (since it's LAZY)
+        savedJob = jobRepository.findById(savedJob.getId()).orElseThrow();
+
+        // Ensure location is loaded by accessing it
+        if (savedJob.getLocation() != null) {
+            savedJob.getLocation().getAddress(); // Force load
+        }
+
         // Automatically create work logs for all assigned technicians
         if (savedJob.getStartTime() != null && savedJob.getEndTime() != null &&
             savedJob.getAssignedTechnicians() != null && !savedJob.getAssignedTechnicians().isEmpty()) {

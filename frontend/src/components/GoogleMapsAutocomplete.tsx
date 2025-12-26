@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { Autocomplete, useLoadScript } from '@react-google-maps/api';
-import { TextField, Box, CircularProgress } from '@mui/material';
-
-const libraries: ("places")[] = ["places"];
+import { Autocomplete } from '@react-google-maps/api';
+import { TextField } from '@mui/material';
 
 interface PlaceResult {
   address: string;
@@ -33,11 +31,6 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
 }) => {
   const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
   const [inputValue, setInputValue] = useState(defaultValue);
-
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '',
-    libraries,
-  });
 
   const onLoad = (autocompleteInstance: google.maps.places.Autocomplete) => {
     setAutocomplete(autocompleteInstance);
@@ -95,19 +88,6 @@ const GoogleMapsAutocomplete: React.FC<GoogleMapsAutocompleteProps> = ({
       }
     }
   };
-
-  if (loadError) {
-    return <Box color="error.main">Error loading Google Maps</Box>;
-  }
-
-  if (!isLoaded) {
-    return (
-      <Box display="flex" alignItems="center" gap={1}>
-        <CircularProgress size={20} />
-        <span>Loading Google Maps...</span>
-      </Box>
-    );
-  }
 
   return (
     <Autocomplete onLoad={onLoad} onPlaceChanged={onPlaceChanged}>

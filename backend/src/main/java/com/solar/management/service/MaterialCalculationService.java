@@ -29,9 +29,13 @@ public class MaterialCalculationService {
         int numberOfPanels,
         double systemCapacity,
         String roofType,
-        String installationType
+        String installationType,
+        int layoutRows,
+        int layoutColumns,
+        double panelSpacing
     ) {
-        log.info("Calculating materials for {} panels, {}kW system", numberOfPanels, systemCapacity);
+        log.info("Calculating materials for {} panels ({}x{}), {}kW system",
+                 numberOfPanels, layoutRows, layoutColumns, systemCapacity);
 
         // Calculate inverter size (typically 110-120% of panel capacity)
         double inverterCapacity = Math.ceil(systemCapacity * 1.15);
@@ -39,6 +43,10 @@ public class MaterialCalculationService {
 
         // Calculate mounting hardware
         int railsQuantity = calculateRails(numberOfPanels);
+
+        // Calculate optimized rail cuts
+        RailCutOptimization railOptimization = calculateOptimizedRailCuts(layoutRows, layoutColumns, panelSpacing);
+
         int clampsQuantity = numberOfPanels * 4; // 4 clamps per panel
         int hooksQuantity = calculateHooks(numberOfPanels, roofType);
         int flashingsQuantity = hooksQuantity; // 1 flashing per hook
@@ -81,6 +89,10 @@ public class MaterialCalculationService {
             .inverterCapacity(inverterCapacity)
             // Mounting
             .railsQuantity(railsQuantity)
+            .rails4m(railOptimization.rails4m)
+            .rails6m(railOptimization.rails6m)
+            .railCutPlan(railOptimization.getCutPlanJson())
+            .railWastage(railOptimization.totalWastage)
             .clampsQuantity(clampsQuantity)
             .hooksQuantity(hooksQuantity)
             .flashingsQuantity(flashingsQuantity)
@@ -181,5 +193,175 @@ public class MaterialCalculationService {
             .totalCost(batteryCost.add(installationCost))
             .estimatedInstallDays(1)
             .build();
+    }
+
+    /**
+     * Calculate optimized rail cuts for 4m and 6m standard sections
+     * Uses First-Fit Decreasing bin packing algorithm to minimize waste
+     */
+    private RailCutOptimization calculateOptimizedRailCuts(int layoutRows, int layoutColumns, double panelSpacing) {
+        final double PANEL_WIDTH = 1.0;  // meters
+        final double PANEL_HEIGHT = 1.7; // meters
+        final double RAIL_4M = 4.0;
+        final double RAIL_6M = 6.0;
+        final double MIN_USABLE = 0.5; // Cuts below this are waste
+
+        RailCutOptimization result = new RailCutOptimization();
+        java.util.List<Double> requiredLengths = new java.util.ArrayList<>();
+
+        // Calculate horizontal rail lengths (2 per row)
+        double horizontalLength = layoutColumns * PANEL_WIDTH + (layoutColumns - 1) * panelSpacing;
+        for (int i = 0; i < layoutRows * 2; i++) {
+            requiredLengths.add(horizontalLength);
+        }
+
+        // Calculate vertical rail lengths (2 per column) - for edge support
+        double verticalLength = layoutRows * PANEL_HEIGHT + (layoutRows - 1) * panelSpacing;
+        for (int i = 0; i < layoutColumns * 2; i++) {
+            requiredLengths.add(verticalLength);
+        }
+
+        // Sort descending (First-Fit Decreasing)
+        requiredLengths.sort(java.util.Collections.reverseOrder());
+
+        // Bin packing algorithm
+        java.util.List<Rail> rails6m = new java.util.ArrayList<>();
+        java.util.List<Rail> rails4m = new java.util.ArrayList<>();
+
+        for (Double length : requiredLengths) {
+            boolean placed = false;
+
+            // Try to fit in existing 6m rails first
+            for (Rail rail : rails6m) {
+                if (rail.remainingLength >= length + 0.01) { // 1cm tolerance
+                    rail.addCut(length);
+                    placed = true;
+                    break;
+                }
+            }
+
+            // Try existing 4m rails
+            if (!placed && length <= RAIL_4M) {
+                for (Rail rail : rails4m) {
+                    if (rail.remainingLength >= length + 0.01) {
+                        rail.addCut(length);
+                        placed = true;
+                        break;
+                    }
+                }
+            }
+
+            // Create new rail
+            if (!placed) {
+                if (length <= RAIL_4M) {
+                    Rail newRail = new Rail(RAIL_4M, "4m");
+                    newRail.addCut(length);
+                    rails4m.add(newRail);
+                } else {
+                    Rail newRail = new Rail(RAIL_6M, "6m");
+                    newRail.addCut(length);
+                    rails6m.add(newRail);
+                }
+            }
+        }
+
+        // Aggregate cuts and calculate wastage
+        java.util.Map<String, Integer> cutCounts = new java.util.HashMap<>();
+
+        for (Rail rail : rails6m) {
+            for (Double cut : rail.cuts) {
+                String key = String.format("%.2f_6m", cut);
+                cutCounts.put(key, cutCounts.getOrDefault(key, 0) + 1);
+            }
+            if (rail.remainingLength < MIN_USABLE) {
+                result.totalWastage += rail.remainingLength;
+            }
+        }
+
+        for (Rail rail : rails4m) {
+            for (Double cut : rail.cuts) {
+                String key = String.format("%.2f_4m", cut);
+                cutCounts.put(key, cutCounts.getOrDefault(key, 0) + 1);
+            }
+            if (rail.remainingLength < MIN_USABLE) {
+                result.totalWastage += rail.remainingLength;
+            }
+        }
+
+        result.rails4m = rails4m.size();
+        result.rails6m = rails6m.size();
+
+        // Convert to RailCut objects
+        cutCounts.forEach((key, count) -> {
+            String[] parts = key.split("_");
+            RailCut cut = new RailCut();
+            cut.length = Double.parseDouble(parts[0]);
+            cut.count = count;
+            cut.source = parts[1];
+            cut.purpose = determinePurpose(cut.length, horizontalLength, verticalLength);
+            result.cuts.add(cut);
+        });
+
+        return result;
+    }
+
+    private String determinePurpose(double length, double horizLen, double vertLen) {
+        if (Math.abs(length - horizLen) < 0.01) {
+            return "Horizontal support rail";
+        } else if (Math.abs(length - vertLen) < 0.01) {
+            return "Vertical support rail";
+        }
+        return "Support rail";
+    }
+
+    /**
+     * Helper class for rail cut optimization result
+     */
+    private static class RailCutOptimization {
+        java.util.List<RailCut> cuts = new java.util.ArrayList<>();
+        int rails4m = 0;
+        int rails6m = 0;
+        double totalWastage = 0.0;
+
+        String getCutPlanJson() {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                return mapper.writeValueAsString(cuts);
+            } catch (Exception e) {
+                log.error("Failed to serialize rail cut plan", e);
+                return "[]";
+            }
+        }
+    }
+
+    /**
+     * Helper class for individual rail cut
+     */
+    private static class RailCut {
+        public double length;
+        public int count;
+        public String source; // "4m" or "6m"
+        public String purpose;
+    }
+
+    /**
+     * Helper class for bin packing algorithm
+     */
+    private static class Rail {
+        double totalLength;
+        double remainingLength;
+        String type;
+        java.util.List<Double> cuts = new java.util.ArrayList<>();
+
+        Rail(double length, String type) {
+            this.totalLength = length;
+            this.remainingLength = length;
+            this.type = type;
+        }
+
+        void addCut(double cutLength) {
+            cuts.add(cutLength);
+            remainingLength -= cutLength;
+        }
     }
 }

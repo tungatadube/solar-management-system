@@ -1,5 +1,6 @@
 package com.solar.management.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solar.management.entity.Job;
 import com.solar.management.entity.MaterialRequirements;
 import com.solar.management.entity.SolarAnalysis;
@@ -24,6 +25,7 @@ public class SolarOptimizerService {
     private final JobRepository jobRepository;
     private final SolarCalculationService calculationService;
     private final MaterialCalculationService materialCalculationService;
+    private final ObjectMapper objectMapper;
 
     private static final double STANDARD_PANEL_WATTAGE = 330.0;
     private static final double USABLE_ROOF_PERCENTAGE = 0.80; // 80% of roof is usable
@@ -98,12 +100,15 @@ public class SolarOptimizerService {
         double roofLength = roofArea / roofWidth;
         int[] layout = calculationService.optimizePanelLayout(roofWidth, roofLength, numberOfPanels);
 
-        // Calculate materials
+        // Calculate materials with layout info for rail optimization
         MaterialRequirements materials = materialCalculationService.calculateMaterials(
             numberOfPanels,
             actualCapacity,
             roofType,
-            "flush-mount"
+            "flush-mount",
+            layout[0],  // layoutRows
+            layout[1],  // layoutColumns
+            0.05        // panelSpacing
         );
 
         // Calculate roof details
@@ -114,6 +119,16 @@ public class SolarOptimizerService {
         log.info("Roof orientation: {} ({}°), Optimal for location would be: {} ({}°)",
                 roofOrientation, roofAzimuth,
                 calculationService.getOrientationFromAzimuth(optimalAzimuth), optimalAzimuth);
+
+        // Serialize polygon coordinates to JSON
+        String coordinatesJson = null;
+        if (coordinates != null && !coordinates.isEmpty()) {
+            try {
+                coordinatesJson = objectMapper.writeValueAsString(coordinates);
+            } catch (Exception e) {
+                log.error("Failed to serialize roof polygon coordinates", e);
+            }
+        }
 
         // Create analysis entity
         SolarAnalysis analysis = SolarAnalysis.builder()
@@ -137,6 +152,8 @@ public class SolarOptimizerService {
             .layoutRows(layout[0])
             .layoutColumns(layout[1])
             .panelSpacing(0.05)
+            .roofPolygonCoordinates(coordinatesJson)
+            .railCutDetails(materials.getRailCutPlan())
             .materials(materials)
             .analyzedAt(LocalDateTime.now())
             .build();

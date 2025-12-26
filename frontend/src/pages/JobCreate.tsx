@@ -26,12 +26,20 @@ import { jobApi, locationApi, userApi } from '../services/api';
 import { JobType, User, UserRole } from '../types';
 import GoogleMapsAutocomplete from '../components/GoogleMapsAutocomplete';
 import { formatDateToLocalISO } from '../utils/dateUtils';
+import { useLoadScript } from '@react-google-maps/api';
+
+const libraries: ("places" | "drawing" | "geometry")[] = ["places"];
 
 const JobCreate: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '',
+    libraries,
+  });
 
   // Form state
   const [formData, setFormData] = useState({
@@ -189,7 +197,17 @@ const JobCreate: React.FC = () => {
     }
   };
 
-  if (loadingData) {
+  if (loadError) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          Error loading Google Maps. Please check your API key and try again.
+        </Alert>
+      </Box>
+    );
+  }
+
+  if (!isLoaded || loadingData) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
         <CircularProgress />

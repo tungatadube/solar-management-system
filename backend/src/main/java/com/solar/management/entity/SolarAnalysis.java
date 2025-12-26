@@ -84,6 +84,14 @@ public class SolarAnalysis {
     @Column(name = "panel_spacing")
     private Double panelSpacing; // meters between panels
 
+    // Roof polygon coordinates (stored as JSON)
+    @Column(columnDefinition = "TEXT")
+    private String roofPolygonCoordinates; // JSON: [{lat, lng}, ...]
+
+    // Rail cut optimization details (stored as JSON)
+    @Column(columnDefinition = "TEXT")
+    private String railCutDetails; // JSON: rail cut optimization results
+
     // Materials - stored separately for now
     // TODO: Add materials as separate table or JSONB field
     @Transient

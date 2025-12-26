@@ -29,6 +29,10 @@ public class MaterialRequirements implements Serializable {
 
     // Mounting hardware
     private Integer railsQuantity; // meters of rail
+    private Integer rails4m; // Number of 4m rails needed
+    private Integer rails6m; // Number of 6m rails needed
+    private String railCutPlan; // JSON: [{length, count, source, purpose}, ...]
+    private Double railWastage; // Total meters wasted
     private Integer clampsQuantity;
     private Integer hooksQuantity;
     private Integer flashingsQuantity;

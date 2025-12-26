@@ -159,6 +159,41 @@ export interface SolarAnalysisRequest {
   coordinates: Array<{ lat: number; lng: number }>;
 }
 
+export interface MaterialRequirements {
+  panelQuantity?: number;
+  panelType?: string;
+  panelDimensions?: string;
+  inverterQuantity?: number;
+  inverterType?: string;
+  inverterModel?: string;
+  inverterCapacity?: number;
+  railsQuantity?: number;
+  rails4m?: number;
+  rails6m?: number;
+  railCutPlan?: string; // JSON string
+  railWastage?: number;
+  clampsQuantity?: number;
+  hooksQuantity?: number;
+  flashingsQuantity?: number;
+  dcCableLength?: number;
+  acCableLength?: number;
+  conduitLength?: number;
+  isolatorQuantity?: number;
+  mcConnectors?: number;
+  junctionBoxes?: number;
+  surgeProtectors?: number;
+  earthingKit?: number;
+  panelCost?: number;
+  inverterCost?: number;
+  mountingCost?: number;
+  electricalCost?: number;
+  laborCost?: number;
+  totalCost?: number;
+  roofType?: string;
+  installationType?: string;
+  estimatedInstallDays?: number;
+}
+
 export interface SolarAnalysis {
   id: number;
   jobId?: number;
@@ -181,7 +216,9 @@ export interface SolarAnalysis {
   layoutRows: number;
   layoutColumns: number;
   panelSpacing: number;
-  materials?: any;
+  roofPolygonCoordinates?: string; // JSON string
+  railCutDetails?: string; // JSON string
+  materials?: MaterialRequirements;
   analyzedAt: string;
   createdAt: string;
   updatedAt: string;
