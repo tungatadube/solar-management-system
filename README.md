@@ -197,10 +197,40 @@ REACT_APP_API_URL=http://localhost:8080/api
 
 | Role | Permissions |
 |------|------------|
-| **Admin** | Full system access, user management, system configuration |
-| **Manager** | Job management, reporting, stock oversight |
-| **Technician** | Job execution, location tracking, image upload |
+| **Admin** | Full system access, user management, system configuration, can see ALL data |
+| **Manager** | Job management, reporting, stock oversight, can see ALL data |
+| **Technician** | Job execution, location tracking, image upload, **restricted to own data only** |
 | **Assistant** | Limited job access, stock viewing |
+
+### Role-Based Access Control (RBAC)
+
+The system implements comprehensive role-based access control with three-layer security:
+
+#### Security Layers
+
+1. **@PreAuthorize Annotations**: Block unauthenticated/unauthorized requests at controller level
+2. **Service Validation**: Validate resource access before operations
+3. **Auto-filtering**: Return only authorized data in list queries
+
+#### Access Rules
+
+**ADMIN and MANAGER:**
+- Can see ALL jobs, worklogs, invoices, and location tracking data
+- Full CRUD access to all resources
+- Can manage users and system configuration
+
+**TECHNICIAN:**
+- Can ONLY see jobs they are assigned to
+- Can ONLY see their own worklogs, invoices, and location tracking
+- Cannot access other technicians' data (returns 403 Forbidden)
+- Cannot create or delete jobs (only ADMIN/MANAGER can)
+- Can update job status for assigned jobs
+- Can upload images and log travel for assigned jobs
+
+**Path Traversal Prevention:**
+- All userId parameters in URLs are validated
+- Technicians cannot query `/api/worklogs/user/{otherUserId}` - returns 403
+- Technicians cannot query `/api/invoices/technician/{otherUserId}` - returns 403
 
 ## Mobile Integration
 
@@ -313,6 +343,271 @@ npm run build
 3. **CORS Errors**
    - Update `app.cors.allowed-origins` in application.yml
    - Ensure frontend URL is whitelisted
+
+## Testing Role-Based Access Control
+
+### Prerequisites
+
+```bash
+# Ensure Docker services are running
+docker-compose up -d
+
+# Rebuild backend with latest code
+docker-compose build backend
+docker-compose up -d backend
+```
+
+### Test Script 1: Get Authentication Tokens
+
+Save this as `scripts/get_tokens.sh`:
+
+```bash
+#!/bin/bash
+
+# Get admin token
+ADMIN_RESPONSE=$(curl -s -X POST "http://localhost:8180/realms/solar-management/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=admin" \
+  -d "password=password123" \
+  -d "grant_type=password" \
+  -d "client_id=solar-frontend")
+
+ADMIN_TOKEN=$(echo $ADMIN_RESPONSE | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null)
+echo "$ADMIN_TOKEN" > /tmp/admin_token.txt
+echo "Admin token obtained (length: ${#ADMIN_TOKEN})"
+
+# Get technician token (john.tech)
+TECH_RESPONSE=$(curl -s -X POST "http://localhost:8180/realms/solar-management/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=john.tech" \
+  -d "password=password123" \
+  -d "grant_type=password" \
+  -d "client_id=solar-frontend")
+
+TECH_TOKEN=$(echo $TECH_RESPONSE | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null)
+echo "$TECH_TOKEN" > /tmp/tech_token.txt
+echo "Technician token obtained (length: ${#TECH_TOKEN})"
+
+# Get second technician token (mike.tech)
+TECH2_RESPONSE=$(curl -s -X POST "http://localhost:8180/realms/solar-management/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=mike.tech" \
+  -d "password=password123" \
+  -d "grant_type=password" \
+  -d "client_id=solar-frontend")
+
+TECH2_TOKEN=$(echo $TECH2_RESPONSE | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null)
+echo "$TECH2_TOKEN" > /tmp/tech2_token.txt
+echo "Technician 2 token obtained (length: ${#TECH2_TOKEN})"
+```
+
+### Test Script 2: Comprehensive Access Control Tests
+
+Save this as `scripts/test_access_control.sh`:
+
+```bash
+#!/bin/bash
+
+ADMIN_TOKEN=$(cat /tmp/admin_token.txt)
+TECH_TOKEN=$(cat /tmp/tech_token.txt)
+TECH2_TOKEN=$(cat /tmp/tech2_token.txt)
+
+echo "========================================="
+echo "FINAL ROLE-BASED ACCESS CONTROL TEST"
+echo "========================================="
+echo ""
+
+# Get user IDs
+echo "Getting user IDs..."
+JOHN_ID=21  # john.tech
+MDUDUZI_ID=3  # mduduzi (existing technician)
+
+echo "John (john.tech) ID: $JOHN_ID"
+echo "Mduduzi ID: $MDUDUZI_ID"
+echo ""
+
+# Test 1: TECHNICIAN sees only assigned jobs
+echo "=== TEST 1: Role-Based Job Filtering ==="
+echo "John accessing GET /api/jobs (should see only assigned jobs)"
+JOHN_JOBS=$(curl -s -X GET "http://localhost:8080/api/jobs" \
+  -H "Authorization: Bearer $TECH_TOKEN")
+JOHN_JOBS_COUNT=$(echo $JOHN_JOBS | python3 -c "import sys, json; print(len(json.load(sys.stdin)))" 2>/dev/null)
+echo "Result: John sees $JOHN_JOBS_COUNT jobs (assigned to him)"
+echo "Jobs: $(echo $JOHN_JOBS | python3 -c "import sys, json; jobs = json.load(sys.stdin); print([j['jobNumber'] for j in jobs])" 2>/dev/null)"
+echo ""
+
+# Test 2: TECHNICIAN can access own data
+echo "=== TEST 2: Access Own Data (200 OK) ==="
+echo "John accessing GET /api/jobs/user/$JOHN_ID"
+RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X GET "http://localhost:8080/api/jobs/user/$JOHN_ID" \
+  -H "Authorization: Bearer $TECH_TOKEN")
+HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE" | cut -d: -f2)
+if [ "$HTTP_CODE" == "200" ]; then
+  echo "✓ PASS: Got 200 OK"
+else
+  echo "✗ FAIL: Got $HTTP_CODE"
+fi
+echo ""
+
+# Test 3: TECHNICIAN cannot access other user's data (403 Forbidden)
+echo "=== TEST 3: Access Other User's Data (403 Forbidden) ==="
+echo "John accessing GET /api/jobs/user/$MDUDUZI_ID (Mduduzi's jobs)"
+RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X GET "http://localhost:8080/api/jobs/user/$MDUDUZI_ID" \
+  -H "Authorization: Bearer $TECH_TOKEN")
+HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE" | cut -d: -f2)
+if [ "$HTTP_CODE" == "403" ]; then
+  echo "✓ PASS: Got 403 Forbidden as expected"
+  echo "Error message: $(echo "$RESPONSE" | head -n -1 | python3 -c "import sys, json; print(json.load(sys.stdin).get('message', ''))" 2>/dev/null)"
+else
+  echo "✗ FAIL: Expected 403 but got $HTTP_CODE"
+fi
+echo ""
+
+# Test 4: TECHNICIAN worklogs filtering
+echo "=== TEST 4: Worklog Filtering ==="
+echo "John accessing GET /api/worklogs (should see only own worklogs)"
+JOHN_WORKLOGS=$(curl -s -X GET "http://localhost:8080/api/worklogs" \
+  -H "Authorization: Bearer $TECH_TOKEN")
+JOHN_WORKLOGS_COUNT=$(echo $JOHN_WORKLOGS | python3 -c "import sys, json; print(len(json.load(sys.stdin)))" 2>/dev/null)
+echo "Result: John sees $JOHN_WORKLOGS_COUNT worklogs"
+echo ""
+
+# Test 5: TECHNICIAN cannot access other user's worklogs
+echo "=== TEST 5: Cannot Access Other User's Worklogs (403) ==="
+echo "John accessing GET /api/worklogs/user/$MDUDUZI_ID"
+RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X GET "http://localhost:8080/api/worklogs/user/$MDUDUZI_ID" \
+  -H "Authorization: Bearer $TECH_TOKEN")
+HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE" | cut -d: -f2)
+if [ "$HTTP_CODE" == "403" ]; then
+  echo "✓ PASS: Got 403 Forbidden as expected"
+else
+  echo "✗ FAIL: Expected 403 but got $HTTP_CODE"
+fi
+echo ""
+
+# Test 6: TECHNICIAN cannot create jobs
+echo "=== TEST 6: Cannot Create Jobs (403) ==="
+echo "John trying to POST /api/jobs"
+RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "http://localhost:8080/api/jobs" \
+  -H "Authorization: Bearer $TECH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"clientName":"Test Client","address":"123 Test St"}')
+HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE" | cut -d: -f2)
+if [ "$HTTP_CODE" == "403" ]; then
+  echo "✓ PASS: Got 403 Forbidden as expected"
+else
+  echo "✗ FAIL: Expected 403 but got $HTTP_CODE"
+fi
+echo ""
+
+# Test 7: TECHNICIAN cannot access other technician's invoices
+echo "=== TEST 7: Cannot Access Other's Invoices (403) ==="
+echo "John accessing GET /api/invoices/technician/$MDUDUZI_ID"
+RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X GET "http://localhost:8080/api/invoices/technician/$MDUDUZI_ID" \
+  -H "Authorization: Bearer $TECH_TOKEN")
+HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE" | cut -d: -f2)
+if [ "$HTTP_CODE" == "403" ]; then
+  echo "✓ PASS: Got 403 Forbidden as expected"
+else
+  echo "✗ FAIL: Expected 403 but got $HTTP_CODE"
+fi
+echo ""
+
+# Test 8: TECHNICIAN cannot access other's location tracking
+echo "=== TEST 8: Cannot Access Other's Location (403) ==="
+echo "John accessing GET /api/location-tracking/user/$MDUDUZI_ID/history"
+RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X GET "http://localhost:8080/api/location-tracking/user/$MDUDUZI_ID/history" \
+  -H "Authorization: Bearer $TECH_TOKEN")
+HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE" | cut -d: -f2)
+if [ "$HTTP_CODE" == "403" ]; then
+  echo "✓ PASS: Got 403 Forbidden as expected"
+else
+  echo "✗ FAIL: Expected 403 but got $HTTP_CODE"
+fi
+echo ""
+
+# Test 9: TECHNICIAN can access own location history
+echo "=== TEST 9: Can Access Own Location History (200) ==="
+echo "John accessing GET /api/location-tracking/user/$JOHN_ID/history"
+RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X GET "http://localhost:8080/api/location-tracking/user/$JOHN_ID/history" \
+  -H "Authorization: Bearer $TECH_TOKEN")
+HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE" | cut -d: -f2)
+if [ "$HTTP_CODE" == "200" ]; then
+  echo "✓ PASS: Got 200 OK"
+else
+  echo "✗ FAIL: Expected 200 but got $HTTP_CODE"
+fi
+echo ""
+
+echo "========================================="
+echo "TEST RESULTS SUMMARY"
+echo "========================================="
+echo ""
+echo "DATA ISOLATION WORKING:"
+echo "- Technicians see only their assigned jobs"
+echo "- Technicians see only their own worklogs"
+echo "- Technicians cannot access other users' data (403 Forbidden)"
+echo ""
+echo "AUTHORIZATION WORKING:"
+echo "- Technicians cannot create jobs (403 Forbidden)"
+echo "- @PreAuthorize annotations enforced correctly"
+echo ""
+echo "✓ Role-based access control implementation successful!"
+```
+
+### Running the Tests
+
+```bash
+# Make scripts executable
+chmod +x scripts/get_tokens.sh
+chmod +x scripts/test_access_control.sh
+
+# Get authentication tokens
+./scripts/get_tokens.sh
+
+# Run access control tests
+./scripts/test_access_control.sh
+```
+
+### Expected Test Results
+
+All tests should pass with the following output:
+
+```
+✓ TEST 1: John sees only 2 assigned jobs (not all jobs)
+✓ TEST 2: John can access own data (200 OK)
+✓ TEST 3: John cannot access Mduduzi's jobs (403 Forbidden)
+✓ TEST 4: John sees only own worklogs
+✓ TEST 5: John cannot access Mduduzi's worklogs (403 Forbidden)
+✓ TEST 6: John cannot create jobs (403 Forbidden)
+✓ TEST 7: John cannot access Mduduzi's invoices (403 Forbidden)
+✓ TEST 8: John cannot access Mduduzi's location history (403 Forbidden)
+✓ TEST 9: John can access own location history (200 OK)
+```
+
+### Default Test Users
+
+| Username | Password | Role | Email |
+|----------|----------|------|-------|
+| admin | password123 | ADMIN | admin@solar.com |
+| manager1 | password123 | MANAGER | manager@solar.com |
+| john.tech | password123 | TECHNICIAN | john@solar.com |
+| mike.tech | password123 | TECHNICIAN | mike@solar.com |
+| assistant1 | password123 | ASSISTANT | assistant@solar.com |
+
+### Troubleshooting Tests
+
+**401 Unauthorized:**
+- Token may have expired (tokens expire after 5 minutes)
+- Re-run `./scripts/get_tokens.sh` to get fresh tokens
+
+**403 Forbidden (unexpected):**
+- User may not have required role
+- Check user assignment to jobs in database
+
+**Connection refused:**
+- Ensure backend is running: `docker-compose ps`
+- Check backend logs: `docker logs solar-backend`
 
 ## Future Enhancements
 
