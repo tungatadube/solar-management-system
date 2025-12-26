@@ -1,14 +1,12 @@
 package com.solar.management.controller;
 
 import com.solar.management.entity.WorkLog;
-import com.solar.management.repository.WorkLogRepository;
-import com.solar.management.repository.UserRepository;
-import com.solar.management.repository.JobRepository;
-import com.solar.management.repository.InvoiceRepository;
+import com.solar.management.service.WorkLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -20,10 +18,7 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class WorkLogController {
 
-    private final WorkLogRepository workLogRepository;
-    private final UserRepository userRepository;
-    private final JobRepository jobRepository;
-    private final InvoiceRepository invoiceRepository;
+    private final WorkLogService workLogService;
     
     /**
      * Create a new work log
@@ -31,116 +26,100 @@ public class WorkLogController {
      * To create work logs, update the job status through the Job API.
      */
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public ResponseEntity<?> createWorkLog(@RequestBody WorkLog workLog) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body("Work logs cannot be created directly. They are automatically generated when a Job is marked as COMPLETED.");
     }
-    
+
     /**
-     * Get all work logs
+     * Get all work logs with role-based filtering
      */
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<WorkLog>> getAllWorkLogs() {
-        List<WorkLog> workLogs = workLogRepository.findAll();
+        List<WorkLog> workLogs = workLogService.getAllWorkLogsForCurrentUser();
         return ResponseEntity.ok(workLogs);
     }
-    
+
     /**
-     * Get work log by ID
+     * Get work log by ID with access validation
      */
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<WorkLog> getWorkLogById(@PathVariable Long id) {
-        WorkLog workLog = workLogRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Work log not found"));
+        WorkLog workLog = workLogService.getWorkLogByIdWithAuth(id);
         return ResponseEntity.ok(workLog);
     }
-    
+
     /**
-     * Get work logs for a specific user
+     * Get work logs for a specific user with access validation
      */
     @GetMapping("/user/{userId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<WorkLog>> getWorkLogsByUser(@PathVariable Long userId) {
-        var user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        List<WorkLog> workLogs = workLogRepository.findByUser(user);
+        List<WorkLog> workLogs = workLogService.getWorkLogsByUserWithAuth(userId);
         return ResponseEntity.ok(workLogs);
     }
-    
+
     /**
-     * Get work logs for a specific job
+     * Get work logs for a specific job with access validation
      */
     @GetMapping("/job/{jobId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<WorkLog>> getWorkLogsByJob(@PathVariable Long jobId) {
-        var job = jobRepository.findById(jobId)
-                .orElseThrow(() -> new RuntimeException("Job not found"));
-        List<WorkLog> workLogs = workLogRepository.findByJob(job);
+        List<WorkLog> workLogs = workLogService.getWorkLogsByJobWithAuth(jobId);
         return ResponseEntity.ok(workLogs);
     }
-    
+
     /**
-     * Get uninvoiced work logs for a user
+     * Get uninvoiced work logs for a user with access validation
      */
     @GetMapping("/user/{userId}/uninvoiced")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<WorkLog>> getUninvoicedWorkLogs(@PathVariable Long userId) {
-        var user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        List<WorkLog> workLogs = workLogRepository.findUninvoicedWorkByUser(user);
+        List<WorkLog> workLogs = workLogService.getUninvoicedWorkLogsWithAuth(userId);
         return ResponseEntity.ok(workLogs);
     }
-    
+
     /**
-     * Get work logs for a user within a date range
+     * Get work logs for a user within a date range with access validation
      */
     @GetMapping("/user/{userId}/date-range")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<WorkLog>> getWorkLogsByUserAndDateRange(
             @PathVariable Long userId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        
-        var user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        List<WorkLog> workLogs = workLogRepository.findByUserAndDateRange(user, startDate, endDate);
+
+        List<WorkLog> workLogs = workLogService.getWorkLogsByUserAndDateRangeWithAuth(
+                userId, startDate, endDate);
         return ResponseEntity.ok(workLogs);
     }
-    
+
     /**
-     * Update work log
+     * Update work log with access validation
      * NOTE: Can only update work details (description, type).
      * Job relationship, dates, and times are managed through the Job entity.
      */
     @PutMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateWorkLog(@PathVariable Long id, @RequestBody WorkLog workLogDetails) {
-        WorkLog workLog = workLogRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Work log not found"));
-
-        // Prevent updating if already invoiced
-        if (workLog.getInvoiced()) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body("Cannot update work log that has already been invoiced.");
+        try {
+            WorkLog updated = workLogService.updateWorkLogWithAuth(id, workLogDetails);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         }
-
-        // Only allow updating description and work type (not job relationship, dates, or times)
-        if (workLogDetails.getWorkDescription() != null) {
-            workLog.setWorkDescription(workLogDetails.getWorkDescription());
-        }
-        if (workLogDetails.getWorkType() != null) {
-            workLog.setWorkType(workLogDetails.getWorkType());
-        }
-
-        // Job, user, dates, times, hourlyRate, and jobAddress are managed through Job entity
-        // and should not be updated directly
-
-        WorkLog updated = workLogRepository.save(workLog);
-        return ResponseEntity.ok(updated);
     }
-    
+
     /**
      * Delete work log
      * DISABLED: Work logs can only be deleted through the parent Job.
      * Deleting a Job will cascade delete all related work logs.
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deleteWorkLog(@PathVariable Long id) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body("Work logs cannot be deleted directly. Delete the parent Job to remove all associated work logs.");

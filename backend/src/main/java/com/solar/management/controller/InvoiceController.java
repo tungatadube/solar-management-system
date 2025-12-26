@@ -10,6 +10,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -29,12 +30,13 @@ public class InvoiceController {
      * Generate a new invoice for a technician for a date range
      */
     @PostMapping("/generate")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Invoice> generateInvoice(
             @RequestParam Long technicianId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        
-        Invoice invoice = invoiceService.generateInvoice(technicianId, startDate, endDate);
+
+        Invoice invoice = invoiceService.generateInvoiceWithAuth(technicianId, startDate, endDate);
         return new ResponseEntity<>(invoice, HttpStatus.CREATED);
     }
     
@@ -42,9 +44,10 @@ public class InvoiceController {
      * Generate PDF file for an existing invoice
      */
     @PostMapping("/{id}/generate-excel")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> generateExcelInvoice(@PathVariable Long id) {
         try {
-            String filePath = invoiceService.generateExcelInvoice(id);
+            String filePath = invoiceService.generateExcelInvoiceWithAuth(id);
             return ResponseEntity.ok(filePath);
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -56,14 +59,15 @@ public class InvoiceController {
      * Download invoice PDF file
      */
     @GetMapping("/{id}/download")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Resource> downloadInvoice(@PathVariable Long id) {
         try {
-            Invoice invoice = invoiceService.getInvoiceById(id);
+            Invoice invoice = invoiceService.getInvoiceByIdWithAuth(id);
 
             if (invoice.getFileUrl() == null) {
                 // Generate if not exists
-                invoiceService.generateExcelInvoice(id);
-                invoice = invoiceService.getInvoiceById(id);
+                invoiceService.generateExcelInvoiceWithAuth(id);
+                invoice = invoiceService.getInvoiceByIdWithAuth(id);
             }
 
             Resource file = new FileSystemResource(Paths.get("./uploads", invoice.getFileUrl()));
@@ -83,8 +87,9 @@ public class InvoiceController {
      * Get invoice by ID
      */
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Invoice> getInvoiceById(@PathVariable Long id) {
-        Invoice invoice = invoiceService.getInvoiceById(id);
+        Invoice invoice = invoiceService.getInvoiceByIdWithAuth(id);
         return ResponseEntity.ok(invoice);
     }
     
@@ -92,8 +97,9 @@ public class InvoiceController {
      * Get all invoices for a technician
      */
     @GetMapping("/technician/{technicianId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Invoice>> getInvoicesByTechnician(@PathVariable Long technicianId) {
-        List<Invoice> invoices = invoiceService.getInvoicesByTechnician(technicianId);
+        List<Invoice> invoices = invoiceService.getInvoicesByTechnicianWithAuth(technicianId);
         return ResponseEntity.ok(invoices);
     }
     
@@ -101,8 +107,9 @@ public class InvoiceController {
      * Update invoice details (bill to, bank info, etc.)
      */
     @PutMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Invoice> updateInvoice(@PathVariable Long id, @RequestBody Invoice invoiceDetails) {
-        Invoice invoice = invoiceService.getInvoiceById(id);
+        Invoice invoice = invoiceService.getInvoiceByIdWithAuth(id);
 
         // Update editable fields
         if (invoiceDetails.getBillToName() != null) invoice.setBillToName(invoiceDetails.getBillToName());
