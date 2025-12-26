@@ -239,3 +239,29 @@ export interface Invoice {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface AddressResult {
+  formattedAddress: string;
+  streetNumber?: string;
+  route?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  lat: number;
+  lng: number;
+}
+
+export interface StationaryLocation {
+  lat: number;
+  lng: number;
+  address: string;
+  dismissedAt?: number;
+}
+
+export interface LocationPoint {
+  lat: number;
+  lng: number;
+  timestamp: number;
+  accuracy: number;
+}
