@@ -6,6 +6,7 @@ import com.solar.management.entity.WorkLog;
 import com.solar.management.repository.InvoiceRepository;
 import com.solar.management.repository.UserRepository;
 import com.solar.management.repository.WorkLogRepository;
+import com.solar.management.security.AuthenticationHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,6 +36,7 @@ public class InvoiceService {
     private final UserRepository userRepository;
     private final ParameterService parameterService;
     private final PdfInvoiceGenerator pdfInvoiceGenerator;
+    private final AuthenticationHelper authHelper;
 
     @Value("${file.upload-dir:./uploads}")
     private String uploadDir;
@@ -161,6 +163,42 @@ public class InvoiceService {
         User technician = userRepository.findById(technicianId)
                 .orElseThrow(() -> new RuntimeException("Technician not found"));
         return invoiceRepository.findByTechnicianOrderByDateDesc(technician);
+    }
+
+    /**
+     * Generate invoice with access validation
+     * Technicians can only generate invoices for themselves
+     */
+    public Invoice generateInvoiceWithAuth(Long technicianId, LocalDate startDate, LocalDate endDate) {
+        authHelper.validateUserAccess(technicianId);
+        return generateInvoice(technicianId, startDate, endDate);
+    }
+
+    /**
+     * Get invoice by ID with access validation
+     * Technicians can only access their own invoices
+     */
+    public Invoice getInvoiceByIdWithAuth(Long id) {
+        Invoice invoice = getInvoiceById(id);
+        authHelper.validateInvoiceAccess(invoice);
+        return invoice;
+    }
+
+    /**
+     * Get invoices by technician with access validation
+     * Technicians can only access their own invoices
+     */
+    public List<Invoice> getInvoicesByTechnicianWithAuth(Long technicianId) {
+        authHelper.validateUserAccess(technicianId);
+        return getInvoicesByTechnician(technicianId);
+    }
+
+    /**
+     * Generate Excel invoice with access validation
+     */
+    public String generateExcelInvoiceWithAuth(Long id) throws IOException {
+        Invoice invoice = getInvoiceByIdWithAuth(id);
+        return generateExcelInvoice(id);
     }
 
 }
