@@ -55,6 +55,11 @@ aws:
 file:
   upload-dir: ${FILE_UPLOAD_DIR:./uploads}
 
+# Google Maps Configuration
+google:
+  maps:
+    api-key: ${GOOGLE_MAPS_API_KEY:}
+
 # Application Configuration
 app:
   cors:
