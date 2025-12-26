@@ -28,4 +28,10 @@ public interface JobRepository extends JpaRepository<Job, Long> {
     List<Job> findJobsBetweenDates(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     Page<Job> findByClientNameContainingIgnoreCase(String clientName, Pageable pageable);
+
+    @Query("SELECT j FROM Job j JOIN j.assignedTechnicians t WHERE t = :user AND LOWER(j.clientName) LIKE LOWER(CONCAT('%', :clientName, '%'))")
+    Page<Job> findByClientNameContainingIgnoreCaseAndAssignedTo(
+            @Param("clientName") String clientName,
+            @Param("user") User user,
+            Pageable pageable);
 }

@@ -2,6 +2,7 @@ package com.solar.management.service;
 
 import com.solar.management.entity.*;
 import com.solar.management.repository.*;
+import com.solar.management.security.AuthenticationHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -34,7 +35,8 @@ public class JobService {
     private final WorkLogRepository workLogRepository;
     private final ParameterService parameterService;
     private final FileStorageService fileStorageService;
-    
+    private final AuthenticationHelper authHelper;
+
     public Job createJob(Job job) {
         // Generate unique job number
         String jobNumber = generateJobNumber();
@@ -301,7 +303,56 @@ public class JobService {
     public Page<Job> searchJobsByClientName(String clientName, Pageable pageable) {
         return jobRepository.findByClientNameContainingIgnoreCase(clientName, pageable);
     }
-    
+
+    /**
+     * Get all jobs with role-based filtering
+     * ADMIN/MANAGER: All jobs
+     * TECHNICIAN: Only assigned jobs
+     */
+    public List<Job> getAllJobsForCurrentUser() {
+        if (authHelper.isAdminOrManager()) {
+            return jobRepository.findAll();
+        } else {
+            User currentUser = authHelper.getCurrentUser();
+            return jobRepository.findByAssignedTo(currentUser);
+        }
+    }
+
+    /**
+     * Get jobs by status with role-based filtering
+     */
+    public List<Job> getJobsByStatusForCurrentUser(Job.JobStatus status) {
+        if (authHelper.isAdminOrManager()) {
+            return jobRepository.findByStatus(status);
+        } else {
+            User currentUser = authHelper.getCurrentUser();
+            return jobRepository.findByAssignedToAndStatusIn(currentUser, List.of(status));
+        }
+    }
+
+    /**
+     * Get job by ID with access validation
+     * Validates that technicians can only access assigned jobs
+     */
+    public Job getJobByIdWithAuth(Long id) {
+        Job job = getJobById(id);
+        authHelper.validateJobAccess(job);
+        return job;
+    }
+
+    /**
+     * Search jobs by client name with role-based filtering
+     */
+    public Page<Job> searchJobsByClientNameForCurrentUser(String clientName, Pageable pageable) {
+        if (authHelper.isAdminOrManager()) {
+            return jobRepository.findByClientNameContainingIgnoreCase(clientName, pageable);
+        } else {
+            User currentUser = authHelper.getCurrentUser();
+            return jobRepository.findByClientNameContainingIgnoreCaseAndAssignedTo(
+                    clientName, currentUser, pageable);
+        }
+    }
+
     public List<JobImage> getJobImages(Long jobId) {
         Job job = getJobById(jobId);
         return jobImageRepository.findByJob(job);
