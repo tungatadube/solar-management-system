@@ -10,6 +10,7 @@ public interface UserService {
     Optional<User> getUserById(Long id);
     Optional<User> getUserByUsername(String username);
     Optional<User> getUserByEmail(String email);
+    Optional<User> getUserByKeycloakId(String keycloakId);
     User createUser(User user);
     User updateUser(Long id, User user);
     void deleteUser(Long id);
