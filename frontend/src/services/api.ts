@@ -233,4 +233,13 @@ export const solarOptimizerApi = {
   delete: (id: number) => api.delete(`/solar-optimizer/${id}`),
 };
 
+// Geocoding APIs
+export const geocodingApi = {
+  reverseGeocode: (lat: number, lng: number) =>
+    api.post('/geocoding/reverse', null, {
+      params: { latitude: lat, longitude: lng }
+    }),
+  cleanupCache: () => api.delete('/geocoding/cache/cleanup'),
+};
+
 export default api;
