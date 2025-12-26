@@ -34,8 +34,11 @@ public class User {
     
     @Column(nullable = false, unique = true)
     private String email;
-    
-    @Column(nullable = false)
+
+    @Column(unique = true)
+    private String keycloakId;
+
+    @Column
     @JsonIgnore
     private String password;
     
@@ -80,11 +83,24 @@ public class User {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
-    
+
+    @Column
+    private LocalDateTime lastKeycloakSync;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 50)
+    private SyncSource syncSource;
+
     public enum UserRole {
         ADMIN,
         MANAGER,
         TECHNICIAN,
         ASSISTANT
+    }
+
+    public enum SyncSource {
+        KEYCLOAK_AUTO,
+        KEYCLOAK_ADMIN,
+        MANUAL
     }
 }
