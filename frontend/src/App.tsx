@@ -5,6 +5,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import { AuthProvider } from './components/AuthProvider';
+import { StationaryTrackingProvider } from './contexts/StationaryTrackingContext';
+import StationaryJobPromptModal from './components/StationaryJobPromptModal';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import JobsList from './pages/JobsList';
@@ -95,38 +97,41 @@ const theme = createTheme({
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <Router>
-            <Box sx={{ display: 'flex' }}>
-              <Sidebar />
-              <Box
-                component="main"
-                sx={{
-                  flexGrow: 1,
-                  bgcolor: 'background.default',
-                  minHeight: '100vh',
-                }}
-              >
-                <Routes>
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/jobs" element={<JobsList />} />
-                  <Route path="/jobs/create" element={<JobCreate />} />
-                  <Route path="/jobs/edit/:id" element={<JobEdit />} />
-                  <Route path="/stock" element={<StockManagement />} />
-                  <Route path="/tracking" element={<LocationTracking />} />
-                  <Route path="/worklogs" element={<WorkLogs />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/solar-optimizer" element={<SolarOptimizer />} />
-                  <Route path="/solar-optimizer/job/:jobId" element={<SolarOptimizer />} />
-                </Routes>
+      <StationaryTrackingProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <Router>
+              <Box sx={{ display: 'flex' }}>
+                <Sidebar />
+                <Box
+                  component="main"
+                  sx={{
+                    flexGrow: 1,
+                    bgcolor: 'background.default',
+                    minHeight: '100vh',
+                  }}
+                >
+                  <Routes>
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/jobs" element={<JobsList />} />
+                    <Route path="/jobs/create" element={<JobCreate />} />
+                    <Route path="/jobs/edit/:id" element={<JobEdit />} />
+                    <Route path="/stock" element={<StockManagement />} />
+                    <Route path="/tracking" element={<LocationTracking />} />
+                    <Route path="/worklogs" element={<WorkLogs />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/solar-optimizer" element={<SolarOptimizer />} />
+                    <Route path="/solar-optimizer/job/:jobId" element={<SolarOptimizer />} />
+                  </Routes>
+                </Box>
               </Box>
-            </Box>
-          </Router>
-        </ThemeProvider>
-      </QueryClientProvider>
+              <StationaryJobPromptModal />
+            </Router>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </StationaryTrackingProvider>
     </AuthProvider>
   );
 };
