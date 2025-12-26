@@ -62,6 +62,7 @@ services:
       KEYCLOAK_AUTH_SERVER_URL: http://host.docker.internal:8180
       KEYCLOAK_REALM: solar-management
       KEYCLOAK_RESOURCE: solar-backend
+      GOOGLE_MAPS_API_KEY: ${REACT_APP_GOOGLE_MAPS_API_KEY}
       AWS_S3_BUCKET: solar-management-images
       AWS_REGION: ap-southeast-2
       TZ: Australia/Adelaide
