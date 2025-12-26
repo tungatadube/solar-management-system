@@ -86,12 +86,32 @@ public class UserSyncServiceImpl implements UserSyncService {
     @Override
     @Transactional
     public User syncUser(KeycloakUserSyncDTO userDTO) {
+        // First, check if user exists by keycloakId
         Optional<User> existingUser = userRepository.findByKeycloakId(userDTO.getKeycloakId());
 
         if (existingUser.isPresent()) {
             return updateExistingUser(existingUser.get(), userDTO);
         } else {
-            return createNewUser(userDTO);
+            // Check if username already exists (for manual users without keycloakId)
+            Optional<User> userByUsername = userRepository.findByUsername(userDTO.getUsername());
+            if (userByUsername.isPresent()) {
+                // Update the existing manual user with keycloakId
+                User user = userByUsername.get();
+                if (user.getKeycloakId() == null) {
+                    log.info("Linking existing manual user {} to Keycloak ID {}",
+                            user.getUsername(), userDTO.getKeycloakId());
+                    user.setKeycloakId(userDTO.getKeycloakId());
+                    user.setSyncSource(User.SyncSource.KEYCLOAK_AUTO);
+                    return updateExistingUser(user, userDTO);
+                } else {
+                    // Username conflict with different keycloakId - use modified username
+                    log.warn("Username {} already exists with different keycloakId, creating with suffix",
+                            userDTO.getUsername());
+                    return createNewUserWithSuffix(userDTO);
+                }
+            } else {
+                return createNewUser(userDTO);
+            }
         }
     }
 
@@ -112,20 +132,35 @@ public class UserSyncServiceImpl implements UserSyncService {
                 .lastKeycloakSync(LocalDateTime.now())
                 .build();
 
-        try {
-            User savedUser = userRepository.save(user);
-            log.info("Created new user from Keycloak: username={}, keycloakId={}, role={}",
-                    userDTO.getUsername(), userDTO.getKeycloakId(), user.getRole());
-            return savedUser;
-        } catch (DataIntegrityViolationException e) {
-            // Handle duplicate username/email conflict
-            if (e.getMessage().contains("username")) {
-                log.warn("Username conflict for {}, appending keycloak ID suffix", userDTO.getUsername());
-                user.setUsername(userDTO.getUsername() + "_" + userDTO.getKeycloakId().substring(0, 8));
-                return userRepository.save(user);
-            }
-            throw e;
-        }
+        User savedUser = userRepository.save(user);
+        log.info("Created new user from Keycloak: username={}, keycloakId={}, role={}",
+                userDTO.getUsername(), userDTO.getKeycloakId(), user.getRole());
+        return savedUser;
+    }
+
+    /**
+     * Create new user with username suffix to avoid conflicts
+     */
+    private User createNewUserWithSuffix(KeycloakUserSyncDTO userDTO) {
+        String modifiedUsername = userDTO.getUsername() + "_" + userDTO.getKeycloakId().substring(0, 8);
+
+        User user = User.builder()
+                .keycloakId(userDTO.getKeycloakId())
+                .username(modifiedUsername)
+                .email(userDTO.getEmail())
+                .password(UUID.randomUUID().toString())
+                .firstName(userDTO.getFirstName())
+                .lastName(userDTO.getLastName())
+                .role(determineHighestRole(userDTO.getRoles()))
+                .active(true)
+                .syncSource(User.SyncSource.KEYCLOAK_AUTO)
+                .lastKeycloakSync(LocalDateTime.now())
+                .build();
+
+        User savedUser = userRepository.save(user);
+        log.info("Created new user from Keycloak with suffix: username={}, keycloakId={}, role={}",
+                modifiedUsername, userDTO.getKeycloakId(), user.getRole());
+        return savedUser;
     }
 
     /**
