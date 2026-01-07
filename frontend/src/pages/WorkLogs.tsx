@@ -27,6 +27,7 @@ import { workLogApi, userApi } from '../services/api';
 import { WorkLog, User } from '../types';
 
 const WorkLogs: React.FC = () => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [workLogs, setWorkLogs] = useState<WorkLog[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -34,9 +35,29 @@ const WorkLogs: React.FC = () => {
   const [endDate, setEndDate] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
+  // Check if current user is technician
+  const isTechnician = currentUser?.role === 'TECHNICIAN';
+
   useEffect(() => {
-    loadUsers();
+    loadCurrentUser();
   }, []);
+
+  const loadCurrentUser = async () => {
+    try {
+      const response = await userApi.getCurrent();
+      setCurrentUser(response.data);
+
+      // If technician, set their ID and load only their worklogs
+      if (response.data.role === 'TECHNICIAN') {
+        setSelectedUserId(response.data.id);
+      } else {
+        // If admin/manager, load all users for filtering
+        loadUsers();
+      }
+    } catch (error) {
+      console.error('Failed to load current user:', error);
+    }
+  };
 
   const loadUsers = async () => {
     try {
@@ -51,16 +72,28 @@ const WorkLogs: React.FC = () => {
   };
 
   const loadWorkLogs = async () => {
-    if (!selectedUserId) return;
-
     setLoading(true);
     try {
       let response;
-      if (startDate && endDate) {
-        response = await workLogApi.getByDateRange(selectedUserId, startDate, endDate);
+
+      // For technicians, use the simpler getAll() endpoint which auto-filters
+      if (isTechnician) {
+        if (startDate && endDate && selectedUserId) {
+          response = await workLogApi.getByDateRange(selectedUserId, startDate, endDate);
+        } else {
+          response = await workLogApi.getAll(); // Backend auto-filters for technicians
+        }
       } else {
-        response = await workLogApi.getByUser(selectedUserId);
+        // For admin/manager, filter by selected user
+        if (!selectedUserId) return;
+
+        if (startDate && endDate) {
+          response = await workLogApi.getByDateRange(selectedUserId, startDate, endDate);
+        } else {
+          response = await workLogApi.getByUser(selectedUserId);
+        }
       }
+
       setWorkLogs(response.data);
     } catch (error) {
       console.error('Failed to load work logs:', error);
@@ -70,10 +103,11 @@ const WorkLogs: React.FC = () => {
   };
 
   useEffect(() => {
-    if (selectedUserId) {
+    // Load worklogs when user is set, or immediately for technicians
+    if (isTechnician || selectedUserId) {
       loadWorkLogs();
     }
-  }, [selectedUserId]);
+  }, [selectedUserId, isTechnician]);
 
   const handleFilter = () => {
     loadWorkLogs();
@@ -182,23 +216,26 @@ const WorkLogs: React.FC = () => {
           Filters
         </Typography>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Technician</InputLabel>
-              <Select
-                value={selectedUserId || ''}
-                onChange={(e) => setSelectedUserId(e.target.value as number)}
-                label="Technician"
-              >
-                {users.map((user) => (
-                  <MenuItem key={user.id} value={user.id}>
-                    {user.firstName} {user.lastName}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={3}>
+          {/* Show technician filter only for Admin/Manager */}
+          {!isTechnician && (
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Technician</InputLabel>
+                <Select
+                  value={selectedUserId || ''}
+                  onChange={(e) => setSelectedUserId(e.target.value as number)}
+                  label="Technician"
+                >
+                  {users.map((user) => (
+                    <MenuItem key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          )}
+          <Grid item xs={12} md={isTechnician ? 4 : 3}>
             <TextField
               label="Start Date"
               type="date"
@@ -208,7 +245,7 @@ const WorkLogs: React.FC = () => {
               onChange={(e) => setStartDate(e.target.value)}
             />
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={isTechnician ? 4 : 3}>
             <TextField
               label="End Date"
               type="date"
@@ -218,7 +255,7 @@ const WorkLogs: React.FC = () => {
               onChange={(e) => setEndDate(e.target.value)}
             />
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={isTechnician ? 4 : 3}>
             <Box display="flex" gap={1}>
               <Button
                 variant="contained"
