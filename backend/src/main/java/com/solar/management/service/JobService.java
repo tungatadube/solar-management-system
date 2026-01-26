@@ -46,12 +46,14 @@ public class JobService {
         log.info("Creating new job with number: {}", jobNumber);
         Job savedJob = jobRepository.save(job);
 
-        // Reload the job to ensure location is fully loaded (since it's LAZY)
-        savedJob = jobRepository.findById(savedJob.getId()).orElseThrow();
-
-        // Ensure location is loaded by accessing it
-        if (savedJob.getLocation() != null) {
-            savedJob.getLocation().getAddress(); // Force load
+        // Load the full Location entity from the database
+        // (the deserialized JSON only contains the ID, so all other fields are null)
+        if (savedJob.getLocation() != null && savedJob.getLocation().getId() != null) {
+            Location fullLocation = locationRepository.findById(savedJob.getLocation().getId())
+                    .orElse(null);
+            if (fullLocation != null) {
+                savedJob.setLocation(fullLocation);
+            }
         }
 
         // Automatically create work logs for all assigned technicians
