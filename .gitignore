@@ -45,6 +45,9 @@ npm-debug.log*
 postgres_data/
 pgdata/
 
+# Database backups
+backups/*.sql
+
 # Temporary files
 *.tmp
 *.temp
